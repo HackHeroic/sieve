@@ -170,35 +170,56 @@ Artifact: `sensitivity.json`, produced by `sensitivity.py`.
 
 ## Speed, honestly
 
+Measured on the real 66,844-rule PJM lattice, L4, warp-per-rule kernel.
+
 | stage | ms/perm | vs naive |
 |---|---:|---:|
 | L0 naive (scipy tail, 1 core) | 1,510.6 | 1x |
 | L3+L5 fast p-values | 83.3 | 18x |
-| + bitset counts, **1 core, numpy** | 58.4 | 26x |
-| **L6 GPU pipeline, end to end** | **0.48** | **3,134x** |
+| bitset counts, **1 core, numpy** | 58.4 | 26x |
+| **GPU pipeline, end to end** | **0.757** | **1,996x** |
 
-**122x end to end** (58.4 / 0.48), same statistic. Earlier drafts said 58x,
-which does not follow from this table, and labelled the third rung "14-core".
-Both were wrong:
+**77x end to end** against our own CPU path. Earlier drafts said 58x and then
+122x; neither reproduced on the real lattice, and 0.757 ms/perm is what is
+actually measured. `bench_e2e.py` produces it.
 
-- `core.popcount` is `np.bitwise_count(...).sum()`, which is **single-threaded**.
-  `fastp.minp_null_fast` is the only `parallel=True` routine in the codebase and
-  it has **no callers**. There is no multi-core path.
-- That baseline is also **unfused**: it materialises a 387 MB temporary for the
-  AND and a 48 MB one for the count, moving about 1.26 GB to do 0.39 GB of work.
-  Measured useful traffic is **6.8 GB/s** on a machine that sustains 100-400, so
-  the CPU here is bound by numpy, **not by memory bandwidth**. An earlier draft
-  claimed the opposite and used it as the argument for the GPU. It was wrong.
+### The kernel got 1.65x faster and it barely mattered
 
-Against a properly fused, threaded popcount baseline the GPU win would be in the
-low teens, not 122x. **The GPU is not the contribution.** GPU acceleration of
-permutation testing is established prior art (PBOOST, *Bioinformatics* 2014;
-HWY, ACM BCB 2015). It is what makes a 12-second demo possible. See
-`POSITIONING.md`.
+The original kernel assigned one THREAD per rule, so adjacent lanes read words
+5,792 bytes apart: a 32-way scatter on every load. Switching to one WARP per
+rule, where 32 lanes read 32 consecutive words, coalesces those reads.
 
-The defensible engineering claim is the roofline one: arithmetic intensity is
-B/4 popcounts per DRAM byte, and against the 235 GB/s this card actually
-delivers the knee sits at B = 32.2. We batch 32.
+| kernel | ms/batch of 32 | GB/s | % of binding roof |
+|---|---:|---:|---:|
+| thread per rule | 8.683 | 44.6 | 19.0% |
+| **warp per rule** | **5.277** | **73.4** | **31.2%** |
+
+Outputs are bit-identical (`kernel_ab.py`, and `test_gpu_equal.py` end to end).
+Well-tuned kernels reach 65-85%, so there is still about 2x in the kernel.
+
+**But end to end the same change bought only 1.05x**, because the kernel is only
+**22% of wall time**:
+
+```
+kernel                 0.165 ms/perm    22%
+everything else        0.592 ms/perm    78%
+   (host-side permutation indices, gather_pack, and the CPU min-p scan)
+```
+
+**Amdahl ceiling: even if the kernel took zero time, end to end improves 1.28x.**
+Further kernel optimisation is close to pointless until the host-side work is
+overlapped onto a second CUDA stream. That is the honest state of the
+engineering, and it is a better thing to be able to say than a speedup number.
+
+The batch size is not arbitrary: arithmetic intensity is B/4 popcounts per DRAM
+byte, so against the 235 GB/s this card actually delivers the roofline knee sits
+at B = 32.2. We batch 32.
+
+**The GPU is still not the contribution.** GPU acceleration of permutation
+testing is established prior art (PBOOST, *Bioinformatics* 2014; HWY, ACM BCB
+2015). And our CPU baseline is single-threaded unfused numpy at 6.8 GB/s of
+useful traffic on a machine that sustains 100-400, so against a tuned fused
+popcount the win would be low double digits.
 
 ## Housekeeping done
 
