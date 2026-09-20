@@ -25,7 +25,7 @@ import pickle
 import numpy as np
 
 import backends
-from core import Sieve, block_permutation, row_shuffle
+from core import BlockPermuter, Sieve, block_permutation, row_shuffle
 from fastp import logfac_table, logp_all, minp_scan
 
 BLOCK = 168          # hours; chosen from where the ACF decays
@@ -54,6 +54,7 @@ class Problem:
         self.alpha = alpha
         self.months = months
         self.backend = backends.make(device, rules)
+        self._permuters = {}
         self.s = Sieve(rules, y, alpha=alpha)
         self.n, self.n1 = self.s.n, self.s.n1
         self.L = logfac_table(self.n)
@@ -77,16 +78,23 @@ class Problem:
         month; kind="row" is the naive i.i.d. shuffle, present so the demo can
         show it failing.
         """
-        permuter = block_permutation if kind == "block" else row_shuffle
-        strata = self.months if kind == "block" else None
         rng = np.random.default_rng(seed)
         bs = batch or self.backend.batch
+        if kind == "block":
+            # cached structure; draw() issues the same rng calls in the same
+            # order as core.block_permutation, so results are unchanged
+            key = ("block", self.n, BLOCK)
+            bp = self._permuters.get(key)
+            if bp is None:
+                bp = self._permuters[key] = BlockPermuter(self.n, BLOCK, self.months)
+            draw = lambda: bp.draw(rng)
+        else:
+            draw = lambda: row_shuffle(self.n, rng)
         out = np.empty(J)
         d = 0
         while d < J:
             B = min(bs, J - d)
-            idxs = [permuter(self.n, block=BLOCK, rng=rng, strata=strata)
-                    for _ in range(B)]
+            idxs = [draw() for _ in range(B)]
             C = self.backend.counts(self.y, idxs)
             for k in range(B):
                 out[d + k], _ = minp_scan(C[k], self.sup, self.n, self.n1,

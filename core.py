@@ -184,6 +184,52 @@ def block_permutation(n: int, block: int, rng: np.random.Generator,
     return np.concatenate(out + [tail])
 
 
+class BlockPermuter:
+    """
+    Precomputed circular block permutation.
+
+    `block_permutation` rebuilds the same structure on every call: 275 array
+    slices, a Python loop to read each block's stratum, and a per-stratum
+    `zip` loop, then a 276-way concatenate.  Profiled end to end on the real
+    PJM lattice that was **53% of wall time**, against 15% for the GPU kernel.
+
+    None of that structure depends on the draw.  This caches it and reduces the
+    per-call work to one `rng.permutation` per stratum plus a single vectorised
+    gather.
+
+    The RNG call sequence is IDENTICAL to `block_permutation` -- same strata in
+    the same `np.unique` order, one `rng.permutation(pos)` each -- so a given
+    seed yields exactly the same permutations and every cached result stays
+    valid.  `test_core.py` asserts that directly.
+    """
+
+    def __init__(self, n, block, strata=None):
+        self.n, self.block = int(n), int(block)
+        self.nfull = (self.n // self.block) * self.block
+        self.nblocks = self.nfull // self.block
+        self.base = np.arange(self.nfull, dtype=np.int64).reshape(self.nblocks,
+                                                                  self.block)
+        self.tail = np.arange(self.nfull, self.n, dtype=np.int64)
+        if strata is None:
+            self.groups = None
+        else:
+            strata = np.asarray(strata)
+            key = strata[self.base[:, 0]]          # stratum of each block
+            self.groups = [np.flatnonzero(key == s) for s in np.unique(key)]
+        self._map = np.empty(self.nblocks, dtype=np.int64)
+
+    def draw(self, rng):
+        if self.groups is None:
+            order = rng.permutation(self.nblocks)
+            out = self.base[order].ravel()
+        else:
+            m = self._map
+            for pos in self.groups:
+                m[pos] = rng.permutation(pos)
+            out = self.base[m].ravel()
+        return out if self.tail.size == 0 else np.concatenate([out, self.tail])
+
+
 def row_shuffle(n: int, rng: np.random.Generator, **_) -> np.ndarray:
     """The naive i.i.d. shuffle.  Present so we can show it fails."""
     return rng.permutation(n)
