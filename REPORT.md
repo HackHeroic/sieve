@@ -36,6 +36,10 @@ that contain nothing. Ours fires on 7, against a nominal 5%; an exact binomial
 test of correct calibration gives **p = 0.672**, and the 95% interval is
 [0.024, 0.117], which is simply what n = 120 buys.
 
+![Two nulls. The naive row shuffle cannot reach extreme minima, so its cutoff is four times too lenient.](fig6_twonulls.png)
+
+![False positive rate on 120 datasets containing no signal.](fig2_null.png)
+
 *Artifact: `calib_fixed.json`. That is the entire case for the project.*
 
 ---
@@ -73,6 +77,8 @@ Plus **Tarone's testability bound**, which removes rules that can never reach
 the threshold. Measured contribution here: **0.36%**. Reported as a null result
 rather than quietly dropped -- our predicates are quantile-based and therefore
 dense, so nearly everything is testable.
+
+![From 66,844 candidate rules to a reportable set.](fig1_funnel.png)
 
 ---
 
@@ -121,6 +127,10 @@ usual direction.
 
 Replication takes PJM's top 15 rules and tests each against another grid's own
 lattice and own null: CISO 15/15, ERCO 14/15, MISO 15/15, NYIS 13/13.
+
+![PJM's rules tested on four other grids.](fig3_replication.png)
+
+![Effect retained after conditioning on observed NOAA weather.](fig5_weather.png)
 
 *Artifacts: `calib_fixed.json`, `holdout_clean.json`, `replication_clean.json`.*
 
@@ -243,6 +253,8 @@ effect survives. And one strict rule settles it --
 `fc_level>q75 AND fc_ramp_1h>q90 AND fc_day_range>q75`, lift **3.46** -- because
 every term is a property of the forecast itself, knowable the instant it is
 filed whatever its vintage.
+
+![The speed ladder. The CPU rung is single-threaded numpy, and it is labelled that way.](fig4_ladder.png)
 
 **The GPU is not the contribution.** 122x end to end against our own CPU path,
 but that path is single-threaded, unfused numpy running at 6.8 GB/s of useful
