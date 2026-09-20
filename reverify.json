@@ -1,0 +1,54 @@
+{
+ "calibration": {
+  "block": 0.05,
+  "row": 1.0,
+  "n": 120
+ },
+ "grids": {
+  "PJM": {
+   "sig_block": 25768,
+   "sig_row": 43718,
+   "inflation": 1.6966004346476249,
+   "lift": 4.5104207905385305,
+   "lift_wx": 3.7843679765914593,
+   "retained": 0.83902769881912,
+   "top": "fc_level>q50 AND fc_day_range>q90 AND err_lag24>q90"
+  },
+  "CISO": {
+   "sig_block": 17581,
+   "sig_row": 37021,
+   "inflation": 2.1057391502189864,
+   "lift": 5.555631169869826,
+   "lift_wx": 5.441168225734062,
+   "retained": 0.9793969504749456,
+   "top": "err_lag24>q90 AND err_lag48>q90 AND err_roll7d>q90"
+  },
+  "ERCO": {
+   "sig_block": 9314,
+   "sig_row": 34729,
+   "inflation": 3.728687996564312,
+   "lift": 4.36355750853115,
+   "lift_wx": 3.6107786671591677,
+   "retained": 0.8274850646748138,
+   "top": "dem_lag24>q50 AND err_lag24>q90 AND err_roll7d>q90"
+  },
+  "MISO": {
+   "sig_block": 10472,
+   "sig_row": 38937,
+   "inflation": 3.7182009167303285,
+   "lift": 4.79477461077345,
+   "lift_wx": 4.6288805611903445,
+   "retained": 0.9654010744925621,
+   "top": "fc_level>q25 AND err_lag24>q90 AND err_roll7d>q90"
+  },
+  "NYIS": {
+   "sig_block": 15422,
+   "sig_row": 34450,
+   "inflation": 2.2338218129944236,
+   "lift": 4.140338303085345,
+   "lift_wx": 3.2685655219606695,
+   "retained": 0.7894440701922744,
+   "top": "fc_day_range>q90 AND dem_chg_24_48>q50 AND err_lag24>q90"
+  }
+ }
+}

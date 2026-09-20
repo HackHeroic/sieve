@@ -1,0 +1,81 @@
+You are doing an adversarial prior-art search. Your job is to FALSIFY the claim
+below, not to support it. Report papers that defeat it. If you cannot defeat it,
+say so explicitly and state your confidence.
+
+THE CLAIM TO FALSIFY
+--------------------
+"Tarone's testability bound combined with the Westfall-Young min-P permutation
+procedure, applied PER-PATTERN over an anti-monotone conjunctive pattern
+lattice, made valid under BLOCK PERMUTATION for AUTOCORRELATED observations
+(a single long time series, not a collection of independent transactions)."
+
+Each component is individually well established. The question is ONLY whether
+the specific conjunction exists.
+
+WHAT HAS ALREADY BEEN CHECKED (do not just repeat this, go beyond it)
+---------------------------------------------------------------------
+Verified as real and as NOT covering the conjunction:
+- Tarone (1990) Biometrics 46(2):515-522
+- LAMP: Terada, Okada-Hatakeyama, Tsuda, Sese (2013) PNAS 110(32):12996-13001
+- Westfall-Young light: Llinares-Lopez, Sugiyama, Papaxanthos, Borgwardt (2015) KDD'15 725-734
+- FACS: Papaxanthos, Llinares-Lopez, Bodenham, Borgwardt (2016) NIPS 29:2279-2287
+- FastCMH: Llinares-Lopez et al. (2017) Bioinformatics 33(12):1820-1828
+- Hamalainen & Webb (2019) DMKD 33(2):325-377 (tutorial; states exchangeability assumption)
+- Pellegrina & Vandin (2024) FSR, PVLDB 17(11)
+- Tonon & Vandin (2019) IEEE ICDM, PROMISE (permutes WITHIN independent sequences)
+- S3M: Bock, Gumbsch, Moor, Rieck, Roqueiro, Borgwardt (2018) Bioinformatics 34(13):i438-i446
+  (Tarone + time series, but patients are i.i.d. units)
+- SPADE line: Torre et al. (2013) Front Comput Neurosci 7:132; Quaglio et al. (2017) 11:41;
+  Stella, Bouss, Palm, Grun (2022) eNeuro 9(3)
+  (autocorrelated spike trains + closed-itemset lattice + block shuffle surrogates,
+   BUT they deliberately ABANDON per-pattern correction and test pattern spectra instead)
+- Sullivan, Timmermann & White (1999) J Finance 54(5):1647-1691 (7,846 ENUMERATED rules + stationary bootstrap)
+- Romano & Wolf (2005) Econometrica 73(4):1237-1282 (generalises Westfall-Young; has a
+  "Choice of Block Sizes" section naming the circular block bootstrap)
+- Chordia, Goyal & Saretto (2020) RFS 33(5):2134-2179 (2.4M generated signals +
+  Politis-Romano stationary bootstrap + Romano-Wolf StepM, but closed-form enumeration,
+  no lattice search, no pruning, and they argue FOR FDP over FWER)
+
+Negative searches already run, all returning zero:
+  Tarone + block bootstrap
+  testability bound + time series
+  "significant pattern mining" + autocorrelation
+  arXiv q-fin abstracts containing "family-wise error"
+
+WHAT I NEED FROM YOU
+--------------------
+1. Any paper doing PER-PATTERN multiple-testing correction (FWER or FDR) over a
+   SEARCHED pattern lattice where observations are serially dependent. Search
+   across: data mining, bioinformatics, computational neuroscience, econometrics,
+   hydrology, climate science, signal processing, industrial process monitoring,
+   epidemiology (time-series case-crossover), and spatial statistics.
+
+2. Specifically retrieve and characterise Barua & Sander (2014), IEEE TKDE,
+   "Mining Statistically Significant Co-location and Segregation Patterns".
+   Spatial autocorrelation is the closest analogue to temporal. What null model
+   does it use? Does it do per-pattern correction? Does it use Tarone?
+
+3. Subgroup discovery and emerging-pattern mining on time series with any
+   formal significance control. Check Duivesteijn's Exceptional Model Mining
+   line and anything by Knobbe, Feelders, van Leeuwen, Vreeken on temporal data.
+
+4. Any GPU work on Tarone or Westfall-Young beyond: PBOOST (Bioinformatics 2014),
+   GBOOST (2011), and HWY (ACM BCB 2015, "High-speed Westfall-Young permutation
+   procedure for GWAS").
+
+5. Terms I may not have thought of. Consider: "statistically sound pattern
+   mining" + dependence; "significant itemset" + "time series"; "pattern mining"
+   + "surrogate data"; "multiple testing" + "circular block permutation";
+   "swap randomization" + temporal; "maximum entropy null model" + time series.
+
+RULES
+-----
+- Give exact citations: authors, year, full title, venue, volume/pages, DOI.
+- DO NOT invent papers. If you are unsure a paper exists, say so and mark it
+  UNVERIFIED rather than stating it. Fabricated citations are worse than no answer.
+- For each candidate defeater, state precisely WHAT IT PERMUTES and WHAT THE
+  UNIT OF OBSERVATION IS. That distinction is the whole question: permuting
+  labels across independent subjects is not the same as preserving
+  autocorrelation within one long series.
+- End with: (a) the strongest defeater found, (b) your confidence the claim
+  survives, as a percentage, (c) the single search you would run next.

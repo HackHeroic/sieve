@@ -1,0 +1,86 @@
+:root {
+  --ink: #1a1a1a;
+  --muted: #5c5c5c;
+  --rule: #e3e0db;
+  --bg: #ffffff;
+  --accent: #8a3324;
+  --code-bg: #f6f5f3;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: Charter, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--bg);
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 6rem;
+  -webkit-font-smoothing: antialiased;
+}
+h1 {
+  font-size: 2.4rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+}
+h1 + p strong { font-weight: 600; }
+h2 {
+  font-size: 1.45rem;
+  letter-spacing: -0.01em;
+  margin: 3rem 0 1rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--rule);
+  font-weight: 700;
+}
+h3 { font-size: 1.12rem; margin: 2rem 0 0.6rem; font-weight: 700; }
+p { margin: 0 0 1.05rem; }
+strong { font-weight: 700; }
+em { font-style: italic; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(138,51,36,0.3); }
+hr { border: 0; border-top: 1px solid var(--rule); margin: 2.6rem 0; }
+blockquote {
+  margin: 1.4rem 0;
+  padding: 0.2rem 0 0.2rem 1.2rem;
+  border-left: 3px solid var(--accent);
+  color: var(--ink);
+  font-style: italic;
+}
+blockquote p:last-child { margin-bottom: 0; }
+code {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.86em;
+  background: var(--code-bg);
+  padding: 0.12em 0.36em;
+  border-radius: 3px;
+}
+ul, ol { margin: 0 0 1.05rem; padding-left: 1.4rem; }
+li { margin-bottom: 0.45rem; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0 1.8rem;
+  font-size: 0.93rem;
+  line-height: 1.5;
+}
+thead th {
+  text-align: left;
+  font-weight: 700;
+  padding: 0.6rem 0.7rem;
+  border-bottom: 2px solid var(--ink);
+  vertical-align: bottom;
+}
+tbody td {
+  padding: 0.62rem 0.7rem;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+tbody tr:last-child td { border-bottom: 1px solid var(--ink); }
+tbody tr:nth-child(even) { background: #fbfaf9; }
+table code { background: transparent; padding: 0; }
+@media print {
+  body { padding: 0; max-width: none; font-size: 10.5pt; }
+  h2 { page-break-after: avoid; }
+  table, blockquote { page-break-inside: avoid; }
+}

@@ -1,0 +1,99 @@
+{
+ "E5": {
+  "n_tested": 20,
+  "n_held": 19,
+  "lift_train": 4.379061000687877,
+  "lift_test": 5.099317369124232,
+  "detail": [
+   {
+    "rule": "fc_vs_yesterday>q25 AND fc_day_range>q90 AND err_lag24>q90",
+    "lift_train": 4.606870054552836,
+    "lift_test": 5.3889584590852175,
+    "sig_test": true
+   },
+   {
+    "rule": "fc_level>q75 AND fc_day_range>q90 AND err_lag24>q90",
+    "lift_train": 4.6003461644973695,
+    "lift_test": 5.543869668751089,
+    "sig_test": true
+   },
+   {
+    "rule": "fc_day_range>q90 AND err_lag24>q90 AND err_roll7d>q50",
+    "lift_train": 4.466628237390582,
+    "lift_test": 5.035012066305336,
+    "sig_test": true
+   },
+   {
+    "rule": "fc_day_range>q90 AND err_lag24>q90 AND err_lag48>q50",
+    "lift_train": 4.453230513601602,
+    "lift_test": 4.931420908960299,
+    "sig_test": true
+   },
+   {
+    "rule": "fc_day_range>q90 AND err_lag24>q90 AND err_roll7d>q25",
+    "lift_train": 4.4215940628609,
+    "lift_test": 4.768452603971525,
+    "sig_test": true
+   },
+   {
+    "rule": "fc_level>q50 AND fc_day_range>q90 AND err_lag24>q90",
+    "lift_train": 4.4134695268730155,
+    "lift_test": 5.249117719592153,
+    "sig_test": true
+   },
+   {
+    "rule": "fc_day_range>q90 AND dem_lag24>q50 AND err_lag24>q90",
+    "lift_train": 4.410472467571866,
+    "lift_test": 5.010805277525023,
+    "sig_test": true
+   },
+   {
+    "rule": "fc_day_range>q90 AND dem_lag24>q25 AND err_lag24>q90",
+    "lift_train": 4.374195657899145,
+    "lift_test": 4.791942518276803,
+    "sig_test": true
+   },
+   {
+    "rule": "fc_day_range>q90 AND err_lag24>q90 AND netgen_lag24>q25",
+    "lift_train": 4.365417149547,
+    "lift_test": 4.771376241374328,
+    "sig_test": true
+   },
+   {
+    "rule": "fc_day_range>q90 AND err_lag24>q90 AND netgen_lag24>q50",
+    "lift_train": 4.350590068001014,
+    "lift_test": 4.87883345128568,
+    "sig_test": true
+   }
+  ]
+ },
+ "E6": {
+  "CISO": {
+   "tested": 15,
+   "replicated": 15,
+   "mean_lift": 4.54669471549057
+  },
+  "ERCO": {
+   "tested": 15,
+   "replicated": 14,
+   "mean_lift": 3.412158626086777
+  },
+  "MISO": {
+   "tested": 15,
+   "replicated": 15,
+   "mean_lift": 3.674140119880584
+  },
+  "NYIS": {
+   "tested": 13,
+   "replicated": 13,
+   "mean_lift": 3.5772038331403277
+  }
+ },
+ "E7": {
+  "24": 30395,
+  "72": 27507,
+  "168": 26436,
+  "336": 26986,
+  "720": 25674
+ }
+}

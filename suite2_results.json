@@ -1,0 +1,74 @@
+{
+ "power": [
+  [
+   0.005,
+   0.0
+  ],
+  [
+   0.01,
+   0.0
+  ],
+  [
+   0.015,
+   0.0
+  ],
+  [
+   0.02,
+   0.0
+  ],
+  [
+   0.025,
+   0.0
+  ],
+  [
+   0.03,
+   0.3
+  ],
+  [
+   0.04,
+   1.0
+  ],
+  [
+   0.06,
+   1.0
+  ]
+ ],
+ "multi_ba": {
+  "CISO": {
+   "n": 44740,
+   "rules": 67187,
+   "sig_block": 17313,
+   "sig_row": 37105,
+   "inflation": 2.1431872003696646,
+   "top_lift": 2.962629752555002,
+   "top_rule": "err_lag24>q75 AND err_roll7d>q25"
+  },
+  "ERCO": {
+   "n": 48013,
+   "rules": 65504,
+   "sig_block": 9172,
+   "sig_row": 34499,
+   "inflation": 3.761338857392063,
+   "top_lift": 2.796029159555865,
+   "top_rule": "err_lag24>q90"
+  },
+  "MISO": {
+   "n": 46101,
+   "rules": 66789,
+   "sig_block": 10662,
+   "sig_row": 39211,
+   "inflation": 3.677640217595198,
+   "top_lift": 2.5689361056241977,
+   "top_rule": "fc_level>q25 AND err_lag24>q75"
+  },
+  "NYIS": {
+   "n": 48000,
+   "rules": 47620,
+   "sig_block": 15547,
+   "sig_row": 34296,
+   "inflation": 2.205956133016016,
+   "top_lift": 2.180465646343788,
+   "top_rule": "fc_vs_yesterday>q25 AND err_lag24>q75"
+  }
+ }
+}

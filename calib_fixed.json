@@ -1,0 +1,9 @@
+{
+ "block": 0.058333333333333334,
+ "row": 1.0,
+ "n": 120,
+ "J": 300,
+ "rules": 66844,
+ "hours": 46324,
+ "fixed_block_permutation": true
+}

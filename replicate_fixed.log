@@ -1,0 +1,7 @@
+  PJM: 46,324h 66,844r  sig 23,797 vs 43,718 (infl 1.84x)  lift 4.51  12s
+  CISO: 44,740h 67,187r  sig 14,602 vs 37,021 (infl 2.54x)  lift 5.56  9s
+  ERCO: 48,013h 65,504r  sig 8,495 vs 34,729 (infl 4.09x)  lift 4.36  9s
+  MISO: 46,101h 66,789r  sig 10,010 vs 38,937 (infl 3.89x)  lift 4.79  9s
+  NYIS: 48,000h 47,620r  sig 14,084 vs 34,450 (infl 2.45x)  lift 4.14  8s
+
+wrote replicate_fixed.json

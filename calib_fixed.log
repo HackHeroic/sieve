@@ -1,0 +1,24 @@
+nohup: ignoring input
+building PJM features ...
+  46,324 hours, 4,710 positive (10.2%)  9s
+building lattice ...
+  66,844 rules  (387 MB)  5s
+  backend: GPU, NVIDIA L4  batch 32
+  rep  10/120   block 0.100   row 1.000   17s  eta 185s
+  rep  20/120   block 0.050   row 1.000   25s  eta 126s
+  rep  30/120   block 0.067   row 1.000   36s  eta 108s
+  rep  40/120   block 0.075   row 1.000   63s  eta 125s
+  rep  50/120   block 0.080   row 1.000   89s  eta 124s
+  rep  60/120   block 0.083   row 1.000   106s  eta 106s
+  rep  70/120   block 0.071   row 1.000   118s  eta 84s
+  rep  80/120   block 0.062   row 1.000   125s  eta 63s
+  rep  90/120   block 0.056   row 1.000   132s  eta 44s
+  rep 100/120   block 0.060   row 1.000   139s  eta 28s
+  rep 110/120   block 0.064   row 1.000   146s  eta 13s
+  rep 120/120   block 0.058   row 1.000   153s  eta 0s
+
+=== CALIBRATION, FIXED CODE ===
+  circular block permutation  FPR = 0.058   (target 0.05)
+  naive row shuffle           FPR = 1.000
+
+wrote calib_fixed.json

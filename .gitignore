@@ -1,0 +1,18 @@
+# data (652 MB EIA + 71 MB NOAA, re-fetchable via data/fetch.sh)
+data/
+wx/
+
+# caches and run artifacts (regenerable)
+*.npy
+*.npz
+*.pkl
+*.parquet
+__pycache__/
+*.pyc
+
+# rendered docs (regenerable from .md via pandoc + chrome)
+*.pdf
+*.html
+
+# keep the small result JSONs -- they are the evidence
+!*.json
