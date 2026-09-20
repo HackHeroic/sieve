@@ -78,7 +78,29 @@ depending on whether the block covers the dependence.</p>
 <p class=small>CISO's autocorrelation is still 0.152 at three weeks where PJM's is
 0.001. Give it six-month blocks and it calibrates. <b>Block length is a measurement,
 not a convention</b> &mdash; and this is the same failure mode as choosing a bootstrap
-block length badly in a backtest.</p></section><section><div class=kick>4 / 10</div><h2>It knows when it is not needed</h2>
+block length badly in a backtest.</p></section><section><div class=kick>3b</div>
+<h2>This is a backtesting problem</h2>
+<p class=big>Everything above is the same failure mode as data snooping in a backtest.</p>
+<p>Quant finance already solved the correction half. White's Reality Check (2000),
+Hansen's SPA (2005), Romano&ndash;Wolf StepM (2005), the Deflated Sharpe Ratio,
+Probability of Backtest Overfitting. All resampling-based. All handle dependence
+through a <b>block or stationary bootstrap</b>.</p>
+<p class=hl>And all of them need a <b>block length</b>. Romano&ndash;Wolf has a section
+titled "Choice of Block Sizes". Nobody publishes how they chose theirs.</p>
+<table class=tbl2><tr><th>what we measured</th><th>consequence</th></tr>
+<tr><td>block covers the dependence</td><td class=good>FWER 0.067, as advertised</td></tr>
+<tr><td>block too short by 8&times;</td><td class=bad>FWER 0.850</td></tr></table>
+<p class=small>If your backtest's block bootstrap uses a block shorter than your
+strategy's dependence horizon, your data-snooping correction is not doing what the
+paper says it does &mdash; and you will not notice, because nothing errors. <b>We
+measure it.</b> Two lines of difference in the setup; the difference between a 5% error
+rate and an 85% one.</p>
+<p class=small>The other half &mdash; generating the hypothesis space by
+<i>searching a lattice</i> rather than enumerating a fixed grid &mdash; is where finance
+stops. Sullivan&ndash;Timmermann&ndash;White's 7,846 trading rules are a Cartesian
+product of five templates, fixed before seeing data. Nobody in finance searches with
+pruning and testability bounds.</p>
+</section><section><div class=kick>4 / 10</div><h2>It knows when it is not needed</h2>
 <p>We pointed the same tool at NOAA daily weather &mdash; different agency, different
 domain, daily not hourly, no shared feature code.</p>
 <table class=tbl2><tr><th></th><th>outcome ACF, lag 1</th><th>naive / SIEVE inflation</th></tr>

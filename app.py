@@ -27,7 +27,11 @@ import pandas as pd
 from flask import Flask, Response, abort, render_template, request, send_from_directory
 
 import backends
+import engine
 from engine import Problem, load_cached
+
+# the corrected PJM series calibrates at 504h; see FINAL.md
+engine.BLOCK = 504
 
 app = Flask(__name__)
 
