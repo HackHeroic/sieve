@@ -683,3 +683,95 @@ comparison itself**: the naive method gives 30,883 regardless, so it is 1.7x to
 
 That is the case. Not "here is a better number," but **"the thing you would
 otherwise have done fails completely, and here is the measurement."**
+
+
+---
+
+# PART 6 &mdash; THE CODE, FILE BY FILE
+
+1,571 lines across nine live files. What each one does, and the one idea in it
+that matters.
+
+## `core.py` &mdash; 332 lines &mdash; the engine
+
+| function | what it does | the idea |
+|---|---|---|
+| `pack` / `popcount` | bool array <-> 64-bit bitset | 46,324 hours fit in 724 words; intersecting two rules is 724 AND instructions |
+| `FisherTable` | right-tailed Fisher p for fixed margins | under permutation the margins never change, so p depends only on (support, positives) |
+| `tarone_threshold` | the self-consistent testability cutoff | delta = alpha/k(delta) solved by a **monotone sweep**, because naive iteration oscillates |
+| `block_permutation` | the audited circular block draw | the ragged tail is **pinned**: if it joins the shuffle, every row after it shifts and the stratum assignment silently breaks |
+| **`BlockPermuter`** | the cached version | rebuilding 275 slices per draw was **53% of wall time**; caching gives 4.67x with bit-identical draws |
+| `Sieve` | support, Tarone cutoff, testable mask | |
+
+## `fastp.py` &mdash; 173 lines &mdash; the inner loop
+
+Runs 66,817 times per permutation, 1,000 permutations deep. Two ideas:
+
+**Log-factorials, precomputed once.** Every term of the hypergeometric tail then
+costs a few adds, and consecutive terms come from a recurrence, so each extra
+term is one multiply.
+
+**The admissible early exit.** `P(A>=a) >= P(A=a)`, so the first term alone lower-bounds
+the tail. For min-P we only want the smallest p, so if that bound already exceeds
+the running best, the rule cannot win and the tail is never summed. **Prunes
+99.91%**, and it is exact &mdash; pruned rules provably cannot be the minimum.
+
+It also carries a correctness guard worth knowing: the hypergeometric support is
+`max(0, x+n1-n) .. min(x, n1)`, and starting the recurrence below the floor
+divides by zero. That bug was latent for weeks before an audit found it.
+
+## `features.py` &mdash; 300 lines &mdash; EIA-930 to a lattice
+
+Builds the outcome (top decile within each hour x month cell), the predicates
+(quantile cuts, also within-cell), and the rule lattice with three prunings:
+apriori, same-feature exclusion, closed-pattern reduction.
+
+Also carries the **PJM timestamp correction**, date-gated at 2019-01-30, and the
+guard against the four rows reading 2^31 MW.
+
+## `adapter.py` &mdash; 120 lines &mdash; any CSV
+
+The generalisation. Takes any time-indexed table and frames the question as *when
+does the naive persistence forecast fail*: `outcome(t) = 1` if
+`|target(t) - target(t-h)|` is in the top decile of its stratum cell. This is what
+ran on NOAA weather and on 36 years of VIX with no changes.
+
+## `backends.py` &mdash; 136 lines &mdash; CPU and GPU share one set of permutations
+
+Both devices consume the **same index matrix** from `core.block_permutation`, so
+a given seed gives bit-identical results either way and `--device` is a speed
+knob rather than a different experiment. This was not free: the GPU module
+shipped its own vectorised generator that **ignored the stratification**, so the
+two devices had been sampling from different nulls.
+
+## `engine.py` &mdash; 176 lines &mdash; orchestration
+
+`Problem.null()` draws J permutations and batches them to the backend.
+`cutoff()` is an **order statistic**, not `np.quantile` &mdash; interpolating gave
+an achieved rate of 0.0565 against a nominal 0.05. `cover()` reports a
+non-redundant set by lift over a support floor.
+
+## `gpu_kernel_u.py` &mdash; 76 lines &mdash; the kernel
+
+One **warp** per rule, so 32 lanes read 32 consecutive words and coalesce
+(the original gave one *thread* per rule, making every load a 32-way scatter).
+The batch size is a **compile-time literal** so the popcount loop unrolls &mdash;
+worth 1.53x on its own, more than the coalescing fix. 48% of the binding roofline.
+
+Three other kernels are kept in the tree because their results are worth
+reproducing: `gpu_kernel.py` (the original), `gpu_kernel_warp.py` (coalesced, no
+unroll), and `gpu_kernel_smem.py` (shared-memory staging, **6% slower**, kept as
+a documented negative result).
+
+## `sieve_cli.py` and `app.py` &mdash; 258 lines &mdash; the two front ends
+
+The CLI is the deliverable; the Flask page wraps it. Both call the same audited
+code, and the page runs the real engine live rather than replaying a recording.
+
+## The test suites
+
+`test_core.py` (calibration, power, permutation validity), `test_all.py`
+(18 regression tests covering both historical bugs), `test_backends.py`
+(batch-size invariance, stratification, CPU/GPU equality), `test_gpu_equal.py`
+(end-to-end device equality), `kernel_ab.py` (all four kernels bit-identical),
+`verify_all.py` (every change made during the final audit).
