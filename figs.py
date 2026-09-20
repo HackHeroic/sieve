@@ -72,7 +72,7 @@ ax.set_title('Rules found on the mid-Atlantic grid, tested on four others: 57 of
 style(ax); plt.tight_layout(); plt.savefig('fig3_replication.png', dpi=170); plt.close()
 
 # ---------------------------------------------------------------- 4 ladder
-names = ['Naive\n(plain Python)','Faster maths\n(our algorithm)','14 CPU cores','GPU']
+names = ['Naive\n(plain Python)','Faster maths\n(our algorithm)','Bitset counts\n(1 core, numpy)','GPU']
 ms = [1510.6, 83.3, 58.4, 0.48]
 fig, ax = plt.subplots(figsize=(7.6, 3.3))
 cols4 = [MUTED, YELLOW, ORANGE, BLUE]
@@ -84,12 +84,14 @@ for i,v in enumerate(ms):
 ax.annotate('', xy=(3, 0.9), xytext=(0, 900),
             arrowprops=dict(arrowstyle='-|>', color=BLUE, lw=2,
                             connectionstyle='arc3,rad=-0.22'))
-ax.text(1.5, 260, '3,134× faster end to end', color=BLUE, fontweight='bold',
-        fontsize=11.5, ha='center')
+ax.text(1.5, 260, '122× end to end  (3,134× from naive)', color=BLUE,
+        fontweight='bold', fontsize=11, ha='center')
 ax.set_xticks(range(4)); ax.set_xticklabels(names, fontsize=9.5)
 ax.set_ylabel('time per test (ms, log scale)'); ax.set_ylim(0.03, 9000)
 ax.set_title('Each step measured on the same machine, same statistic',
              loc='left', fontweight='bold', fontsize=12, pad=12)
+ax.text(0, 0.045, 'the CPU baseline is single-threaded and unfused; a tuned one '
+        'would narrow this considerably', fontsize=8, color=MUTED, style='italic')
 style(ax); plt.tight_layout(); plt.savefig('fig4_ladder.png', dpi=170); plt.close()
 
 # ---------------------------------------------------------------- 5 weather
