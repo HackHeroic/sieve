@@ -68,7 +68,8 @@ def load_ba(ba: str, years=range(2019, 2027)) -> pd.DataFrame:
     return d
 
 
-def build(ba: str, years=range(2019, 2027), q: float = 0.90, fit_until_year=None):
+def build(ba: str, years=range(2019, 2027), q: float = 0.90, fit_until_year=None,
+          fc_shift: int = 0):
     """
     Returns (X dataframe of binary predicates, y bool outcome, meta dict).
 
@@ -80,6 +81,42 @@ def build(ba: str, years=range(2019, 2027), q: float = 0.90, fit_until_year=None
 
     fc = d["Demand Forecast (MW)"]
     dem = d["Demand (MW)"]
+    # --- corrupt rows -------------------------------------------------
+    # PJM has 4 rows with impossible demand, including 2021-10-19 04:00 UTC at
+    # 2,147,480,000 MW -- that is 2**31, an integer overflow sentinel.  They drag
+    # mean PJM demand from 92,518 to 153,448 MW and destroy any MAE-based
+    # statistic.  MAPE is barely affected (3.6205 vs 3.6115), which is why they
+    # went unnoticed.
+    dem = dem.mask(dem > 3e5).mask(dem <= 0)
+
+    if fc_shift:
+        # PJM's EIA-930 forecast series LEADS its realised demand by exactly one
+        # hour, from 2019-01-30 onward.  Measured, not assumed:
+        #
+        #   * 51 of 55 balancing authorities are optimal at shift 0 on this same
+        #     loader.  PJM is the only one optimal at +1.  So it is not our code.
+        #   * On first differences, PJM's DEMAND leads Eastern peers at lag 0 and
+        #     Central peers at lag -1 (real geography), while PJM's FORECAST
+        #     leads every peer at -1 regardless of timezone.  Timezone-invariance
+        #     is the signature of a label offset inside PJM's own file.
+        #   * The balance identity Demand = NetGen - Interchange holds for PJM at
+        #     lag 0 with a 7 MW median residual and 17.4% exact zeros, so it is
+        #     the FORECAST that is displaced, not demand.  This matters: if
+        #     demand were displaced the fix would be the opposite one.
+        #
+        # THE DATE GATE IS NOT OPTIONAL.  Before 2019-01-30 the series is
+        # correctly aligned: MAPE@0 2.389 vs MAPE@+1 3.278 on those 690 hours,
+        # and shift 0 wins on 28 of 28 days.  Shifting them anyway takes their
+        # positive rate from 4.0% to 24.5% against a 10.2% base, manufacturing
+        # 122 false positives into the January hour x month cells.
+        #
+        # Note fc.shift(k) computes |demand(t) - forecast(t-k)|, i.e. it pulls
+        # the forecast FORWARD by k hours.  An earlier comment described this
+        # with the sign inverted.
+        BREAK = pd.Timestamp("2019-01-30", tz="UTC")
+        shifted = fc.shift(fc_shift)
+        fc = fc.where(fc.index < BREAK, shifted)
+
     err = (dem - fc).abs()
 
     f = pd.DataFrame(index=d.index)
