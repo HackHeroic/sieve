@@ -122,6 +122,52 @@ month-stratified, order-statistic cutoff. The earlier 57/58 came from
 happened to give the same answer, but it was not evidence for the shipped method
 until now.
 
+## How much does the answer depend on the null? Volunteer this.
+
+PJM's day-ahead forecast improved over 2019-2024, and the slow predicates
+(`err_roll7d`, `err_lag*`) carry that level shift. Our null holds calendar MONTH
+fixed but not YEAR, and 81% of rows change year under a stratified draw. So a
+sceptic can fairly ask whether we are detecting a year effect.
+
+The answer is not one number. It is a range, reported rather than extracted.
+J=1000, seed=1, same lattice and same observed statistic throughout; only the
+permutation stratification changes.
+
+| null specification | blocks per stratum | cutoff | significant |
+|---|---:|---:|---:|
+| year x month | 4.1 | **-158.8** | **7,991** |
+| year only | 45.8 | -56.7 | 23,545 |
+| **month only (shipped)** | 22.9 | -51.8 | **24,956** |
+| unstratified block | 275 | -48.6 | 26,005 |
+| *naive row shuffle* | *n/a* | *-12.9* | *43,559* |
+
+**Range across defensible block-permutation specifications: 7,991 to 26,005.**
+That is a factor of 3.3, and it is the honest uncertainty on the headline count.
+
+### Reading the table
+
+The finer the stratification, the fewer blocks are free to move, so the permuted
+series stays closer to the original, chance alignments are stronger, the null
+minima reach further, and the bar rises. Year x month leaves only 4.1 blocks per
+stratum, which is why its cutoff is three times more stringent than any other
+specification.
+
+Whether that is *correct* depends on a substantive judgement we cannot settle
+from the data: if the year-over-year forecast improvement is a confounder, year
+x month is the right null and the answer is 7,991. If the structure worth
+preserving is within-year seasonality, month-only is right and the answer is
+24,956. We ship month-only and report both.
+
+### What survives every specification
+
+**The comparison against the naive null.** Row shuffle gives 43,559 regardless,
+because it never consumed strata. So the inflation factor ranges from 1.7x
+(unstratified) to **5.5x** (year x month) -- and the naive method looks *worse*,
+not better, under the more conservative specifications. No choice in this table
+rescues it.
+
+Artifact: `sensitivity.json`, produced by `sensitivity.py`.
+
 ## Speed, honestly
 
 | stage | ms/perm | vs naive |

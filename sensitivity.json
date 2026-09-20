@@ -1,0 +1,34 @@
+{
+ "month only (shipped)": {
+  "significant": 24956,
+  "boot_mean": 24914,
+  "boot_sd": 297,
+  "cutoff": -51.82894910134919,
+  "strata_levels": 12
+ },
+ "year x month": {
+  "significant": 7991,
+  "boot_mean": 7983,
+  "boot_sd": 242,
+  "cutoff": -158.79789435515897,
+  "strata_levels": 67
+ },
+ "year only": {
+  "significant": 23545,
+  "boot_mean": 23458,
+  "boot_sd": 324,
+  "cutoff": -56.71166076930529,
+  "strata_levels": 6
+ },
+ "none (unstratified)": {
+  "significant": 26005,
+  "boot_mean": 25990,
+  "boot_sd": 251,
+  "cutoff": -48.592211956636206,
+  "strata_levels": null
+ },
+ "row shuffle (naive)": {
+  "significant": 43559,
+  "cutoff": -12.905877094247705
+ }
+}
