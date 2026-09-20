@@ -1,14 +1,16 @@
 # Making it find UNEXPECTED patterns, not just significant ones
 
-> **Caveat, added after audit.** The numbers in this document were produced by
-> `find_unexpected.py` and `verify_unexpected.py`, both of which drew
-> permutations from `gpu_full.block_idx_gpu` -- a generator that ignored the
-> `strata` argument, so the null was NOT the month-stratified circular block
-> permutation described everywhere else. Those scripts are now in `archive/` and
-> the generator has been deleted. **The surprise and reversal figures below have
-> not yet been re-run on the shipped null.** The holdout and cross-grid
-> replication were re-run and both survived unchanged (20/20 and 57/58); this
-> analysis has not been, and should be presented as provisional until it is.
+> **Re-run after audit.** The figures below were originally produced by
+> `verify_unexpected.py`, which drew permutations from `gpu_full.block_idx_gpu`
+> -- a generator that ignored the `strata` argument -- and cut with
+> `np.quantile`. That script is archived and the generator is deleted.
+>
+> Everything here has now been **re-run on the shipped null**
+> (`unexpected_clean.py`, canonical J=1000 month-stratified permutation,
+> order-statistic cutoff) and every figure reproduced unchanged: 24/50 surviving
+> FWER against 39/50 under the naive shuffle, lift-surprise correlation -0.073,
+> top-200 overlap 1/200, and 1,111 reversals of which 0 are significant.
+> Artifact: `unexpected_clean.json`.
 
 
 ## The research

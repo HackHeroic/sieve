@@ -207,6 +207,23 @@ slower than the CPU scan (weak per-thread bound plus warp divergence) and
 carried the same support-boundary bug. `gpu_full.py` now exports only
 `gather_pack` and `block_idx_gpu`.
 
+## A structural limitation found by audit
+
+`features.py` builds `hour_sin` and `hour_cos`, then binarises every feature at
+quantiles taken **within each (hour-of-day x calendar-month) cell**. Inside such
+a cell the hour is constant, so those two features are constant, so all eight of
+their threshold predicates are **identically False**.
+
+Consequence: the lattice has 85 named predicates but **77 that can ever fire**,
+and no rule conditioned on time of day is expressible at all. That is a real
+blind spot -- a morning-ramp interaction exists in the data and the miner
+structurally cannot see it.
+
+Not fixed, deliberately: adding hour-bucket indicators changes the lattice and
+therefore every count in this document. It is the first thing to do after the
+event. `surprise.py:singleton_rates` now falls back to the base rate for a
+never-true predicate rather than returning NaN, and reports how many it found.
+
 ## What is still not proven
 
 1. **Mechanism.** We know *when* forecasts fail, not *why*. Weather is largely

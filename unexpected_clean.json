@@ -1,0 +1,11 @@
+{
+ "top50_surprising_significant": 24,
+ "top50_naive": 39,
+ "reversals": 1111,
+ "reversals_significant": 0,
+ "lift_surprise_corr": -0.07271918517644713,
+ "top200_overlap": 1,
+ "J": 1000,
+ "stratified": true,
+ "cutoff": "order-statistic"
+}

@@ -34,8 +34,32 @@ def _logit(p):
 
 
 def singleton_rates(X, y):
-    """p[predicate] = P(Y=1 | predicate true), for every column."""
-    return {c: float(y[X[c].values.astype(bool)].mean()) for c in X.columns}
+    """
+    p[predicate] = P(Y=1 | predicate true), for every column.
+
+    A predicate that is never true has no conditional rate.  Taking the mean of
+    an empty slice returns NaN with a RuntimeWarning, and that NaN then
+    propagates silently through every surprise score of every rule containing
+    it.  Such predicates exist here: `hour_sin`/`hour_cos` are constant within
+    each (hour x month) binarisation cell, so all eight of their threshold
+    predicates are identically False.
+
+    Fall back to the base rate, which is the correct MaxEnt answer when the
+    predicate carries no information, and report how many were affected.
+    """
+    base = float(y.mean())
+    out, empty = {}, []
+    for c in X.columns:
+        m = X[c].values.astype(bool)
+        if not m.any():
+            out[c] = base
+            empty.append(c)
+        else:
+            out[c] = float(y[m].mean())
+    if empty:
+        print(f"  note: {len(empty)} predicate(s) never true, using base rate "
+              f"({empty[0]}{', ...' if len(empty) > 1 else ''})")
+    return out
 
 
 def surprise_scores(labels, a, sup, y, single):
