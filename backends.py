@@ -66,11 +66,15 @@ class GPUBackend:
     name = "gpu"
     batch = MAX_GPU_BATCH
 
-    def __init__(self, rules, kernel="warp"):
+    def __init__(self, rules, kernel="unrolled"):
         import cupy as cp
         from gpu_full import gather_pack
-        if kernel == "warp":
+        if kernel == "unrolled":
+            from gpu_kernel_u import counts_batch_u as counts_batch
+        elif kernel == "warp":
             from gpu_kernel_warp import counts_batch_warp as counts_batch
+        elif kernel == "smem":
+            from gpu_kernel_smem import counts_batch_smem as counts_batch
         else:
             from gpu_kernel import counts_batch
         self._cp, self._counts, self._pack = cp, counts_batch, gather_pack
@@ -107,16 +111,23 @@ def gpu_available():
         return False
 
 
-def make(device, rules, kernel="warp"):
+def make(device, rules, kernel="unrolled"):
     """
     device is 'cpu', 'gpu', or 'auto'.
 
-    kernel selects the GPU counting kernel.  "warp" assigns one WARP per rule so
-    the 32 lanes read consecutive words and coalesce; "thread" is the original
-    one-thread-per-rule version, kept so the two can be compared.  Measured on an
-    L4 with 66,844 rules: 8.683 -> 5.277 ms per batch of 32, a 1.65x speedup,
-    44.6 -> 73.4 GB/s, 19.0% -> 31.2% of the binding roofline.  Outputs are
-    bit-identical (`kernel_ab.py`).
+    kernel selects the GPU counting kernel.  All four produce bit-identical
+    output (`kernel_ab.py` asserts it); measured on an L4, 66,844 rules, B = 32:
+
+        thread      one thread per rule, the original   8.691 ms   44.5 GB/s  19.0% of roof
+        warp        one warp per rule, coalesced reads  5.253 ms   73.7 GB/s  31.4%
+        smem        warp + ys staged in shared memory   5.616 ms   68.9 GB/s  29.3%
+        unrolled    warp + compile-time B, unrolled     3.430 ms  112.9 GB/s  48.0%   <- default
+
+    Two findings worth keeping.  Staging the label matrix in shared memory is
+    SLOWER: at 185 KB it already lives in L2, so the per-tile __syncthreads costs
+    more than the traffic it saves.  And the single biggest win was not a memory
+    optimisation at all -- it was making B a compile-time literal so the inner
+    popcount loop unrolls.  A runtime trip count cost 1.53x.
     """
     if device == "auto":
         device = "gpu" if gpu_available() else "cpu"

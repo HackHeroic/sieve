@@ -170,66 +170,72 @@ Artifact: `sensitivity.json`, produced by `sensitivity.py`.
 
 ## Speed, honestly
 
-Measured on the real 66,844-rule PJM lattice, L4, warp-per-rule kernel.
+Measured on the real 66,844-rule PJM lattice, NVIDIA L4.
 
 | stage | ms/perm | vs naive |
 |---|---:|---:|
 | L0 naive (scipy tail, 1 core) | 1,510.6 | 1x |
 | L3+L5 fast p-values | 83.3 | 18x |
 | bitset counts, **1 core, numpy** | 58.4 | 26x |
-| **GPU pipeline, end to end** | **0.597** | **2,530x** |
+| **GPU pipeline, end to end** | **0.521** | **2,900x** |
 
-**98x end to end** against our own CPU path. Earlier drafts said 58x and then
-122x; neither reproduced on the real lattice. 0.597 ms/perm is what is actually
-measured, by `bench2.py`.
+**112x end to end** against our own CPU path. Earlier drafts said 58x and then
+122x; neither reproduced. 0.521 ms/perm is measured by `bench2.py`.
 
-### The kernel got 1.65x faster and it barely mattered
+### How it got there, including what did not work
 
-The original kernel assigned one THREAD per rule, so adjacent lanes read words
-5,792 bytes apart: a 32-way scatter on every load. Switching to one WARP per
-rule, where 32 lanes read 32 consecutive words, coalesces those reads.
+We started at 0.757 ms/perm and profiled rather than guessed. Every step below
+produces **bit-identical output**, asserted by `kernel_ab.py` and end to end by
+`test_gpu_equal.py`.
 
-| kernel | ms/batch of 32 | GB/s | % of binding roof |
-|---|---:|---:|---:|
-| thread per rule | 8.683 | 44.6 | 19.0% |
-| **warp per rule** | **5.277** | **73.4** | **31.2%** |
+**1. One warp per rule instead of one thread.** The original had adjacent lanes
+reading words 5,792 bytes apart, a 32-way scatter per load. Coalescing gave
+**1.65x on the kernel** -- and only **1.05x end to end**, which is what sent us
+to the profiler.
 
-Outputs are bit-identical (`kernel_ab.py`, and `test_gpu_equal.py` end to end).
-Well-tuned kernels reach 65-85%, so there is still about 2x in the kernel.
-
-**But end to end the same change bought only 1.05x**, so we profiled instead of
-guessing. The kernel was not the bottleneck:
+**2. The kernel was not the bottleneck.**
 
 ```
-permutation indices (host)     0.801 ms/perm    53%   <- the actual bottleneck
+permutation indices (host)     0.801 ms/perm    53%
 min-p scan (CPU, serial)       0.469 ms/perm    31%
-GPU counts (warp kernel)       0.230 ms/perm    15%
+GPU counts                     0.230 ms/perm    15%
 ```
 
 `block_permutation` rebuilt 275 array slices, read each block's stratum in a
-Python loop, permuted with a per-stratum `zip`, and concatenated 276 arrays --
-on **every single draw**. None of that structure depends on the draw.
-`core.BlockPermuter` caches it and reduces the per-call work to one
-`rng.permutation` per stratum plus a vectorised gather.
+Python loop and concatenated 276 arrays **on every draw**. None of that depends
+on the draw. `core.BlockPermuter` caches it: **4.67x**, with the rng call
+sequence unchanged so no cached result moved. End to end 0.757 -> 0.597.
 
-**4.67x on the draw, and the RNG call sequence is unchanged**, so a given seed
-yields bit-identical permutations and no cached result moved. End to end:
-**0.757 -> 0.597 ms/perm**, 77x -> **98x**.
+**3. Shared-memory staging made it SLOWER.** The label matrix is re-read by every
+warp, so staging it per block looked obvious. It is 185 KB, already resident in
+the L4's 48 MB L2, and the per-tile `__syncthreads()` cost more than the traffic
+saved: **5.616 vs 5.253 ms, 6% worse.** Reverted, and kept in the tree as
+`gpu_kernel_smem.py` so the result is reproducible.
 
-One negative result worth recording: `fastp.minp_null_fast` is a `parallel=True`
-batch scanner that had never been called. Wiring it in made the scan **3.6x
-slower** (1.684 against 0.469 ms/perm) because it oversubscribes the pod's 6
-allocated vCPU. It stays unused, and now the docstring says why.
+**4. The biggest single win was not a memory optimisation.** `B` was a runtime
+kernel argument, so `for (b = 0; b < B; ++b)` could not unroll and `acc[b]` could
+not be proved constant-indexed. Baking B in as a compile-time literal:
+
+| kernel | ms/batch | GB/s | % of binding roof |
+|---|---:|---:|---:|
+| thread per rule | 8.691 | 44.5 | 19.0% |
+| warp per rule | 5.253 | 73.7 | 31.4% |
+| warp + shared memory | 5.616 | 68.9 | 29.3% |
+| **warp + compile-time B** | **3.430** | **112.9** | **48.0%** |
+
+**2.53x on the kernel, 19.0% -> 48.0% of roofline.** Well-tuned kernels reach
+65-85%, so roughly 1.4x remains, and the kernel is now 21% of wall time so the
+Amdahl ceiling on further kernel work is about 1.26x.
 
 The batch size is not arbitrary: arithmetic intensity is B/4 popcounts per DRAM
-byte, so against the 235 GB/s this card actually delivers the roofline knee sits
-at B = 32.2. We batch 32.
+byte, so against the 235 GB/s this card delivers the roofline knee is at
+B = 32.2. We batch 32.
 
-**The GPU is still not the contribution.** GPU acceleration of permutation
-testing is established prior art (PBOOST, *Bioinformatics* 2014; HWY, ACM BCB
-2015). And our CPU baseline is single-threaded unfused numpy at 6.8 GB/s of
-useful traffic on a machine that sustains 100-400, so against a tuned fused
-popcount the win would be low double digits.
+**The GPU is still not the contribution.** GPU permutation testing is
+established prior art (PBOOST, *Bioinformatics* 2014; HWY, ACM BCB 2015). And
+our CPU baseline is single-threaded unfused numpy at 6.8 GB/s of useful traffic
+on a machine sustaining 100-400, so against a tuned fused popcount the win would
+be far smaller.
 
 ## Housekeeping done
 

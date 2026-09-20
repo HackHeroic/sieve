@@ -256,8 +256,8 @@ filed whatever its vintage.
 
 ![The speed ladder. The CPU rung is single-threaded numpy, and it is labelled that way.](fig4_ladder.png)
 
-**The GPU is not the contribution.** 98x end to end against our own CPU path
-(0.597 ms/perm measured on the real lattice; earlier drafts said 58x then 122x,
+**The GPU is not the contribution.** 112x end to end against our own CPU path
+(0.521 ms/perm measured on the real lattice; earlier drafts said 58x then 122x,
 neither of which reproduced),
 but that path is single-threaded, unfused numpy running at 6.8 GB/s of useful
 traffic on a machine that sustains 100-400. It is bound by numpy, not by memory
@@ -268,8 +268,12 @@ per rule, so the 32 lanes read consecutive words and coalesce. **1.65x on the
 kernel, 19.0% -> 31.2% of the binding roofline, bit-identical output.** End to
 end it bought only **1.05x**, so we profiled: the kernel was 15% of wall time and
 **host-side permutation index generation was 53%**. Caching that structure
-(`core.BlockPermuter`, bit-identical draws) took end to end from 0.757 to
-**0.597 ms/perm**, 77x to 98x.
+(`core.BlockPermuter`, bit-identical draws) took end to end from 0.757 to 0.597.
+Then the largest single kernel win turned out not to be a memory optimisation at
+all: `B` was a runtime argument so the inner popcount loop could not unroll, and
+making it a compile-time literal gave **1.53x**. Final: kernel **19.0% -> 48.0%
+of roofline**, end to end **0.521 ms/perm, 112x**. Shared-memory staging of the
+label matrix was tried and is **6% slower** -- at 185 KB it already lives in L2.
 GPU acceleration of permutation testing is established prior art (PBOOST,
 *Bioinformatics* 2014; HWY, ACM BCB 2015).
 
