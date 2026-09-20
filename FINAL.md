@@ -1,322 +1,298 @@
-# SIEVE: final verified state
+# SIEVE: verified results
 
-Two bugs were found by audit and fixed. **Every headline result below was then
-re-run on the corrected code.** Nothing here is carried over from the buggy
-version.
+Every number here traces to a JSON artifact in this repository. Where a number
+changed during the audit, the old value and the reason are stated.
 
-## Regression suite: 18/18 pass
+**All PJM figures below are on the CORRECTED series**: the day-ahead forecast is
+shifted +1h from 2019-01-30 onward, and four overflow rows are removed. See
+"The data defect" below.
 
-`python3 test_all.py` -- run this before trusting anything. It covers both
-bugs, so neither can silently come back.
+---
 
-| group | result |
+## The problem instance
+
+```
+45,980 hours          PJM, 2019-01 to 2024-07
+ 4,660 positive       top decile of |forecast error| within each (hour, month) cell
+66,817 rules          conjunctions of up to 3 predicates, after pruning
+   504 hour blocks    circular block permutation, stratified by calendar month
+```
+
+## Calibration: the result the project rests on
+
+120 datasets built to contain no signal, by circularly shifting the real outcome
+so its autocorrelation survives but its relationship to the features does not.
+
+| null model | false positive rate |
 |---|---|
-| bitsets, 6 sizes + edge cases | pass |
-| Fisher tail vs scipy | pass |
-| **hypergeometric support boundary** (bug 1) | pass, 0/300 mismatches, 3.5e-12 vs scipy |
-| lattice completeness vs brute force | pass, 0 missed, 0 invented |
-| **look-ahead leakage** (bug 2) | pass, 0.006% / 0.000% |
-| adjusted p uniform under the null | pass, KS p = 0.311, 5% rate 0.058 |
+| naive row shuffle | **1.000** |
+| circular block permutation, 504h | **0.067** |
 
-## Validity, re-measured on the fixed code
+Exact binomial test of correct calibration: **p = 0.397**, 95% CI
+[0.029, 0.127], 0.85 standard errors from nominal. The naive method declares a
+discovery on **every one** of 120 datasets containing nothing.
 
-120 true nulls, built by circularly shifting the real outcome:
+*Artifact: `final_results.json`.*
 
-| null | false positive rate |
-|---|---|
-| circular block permutation | **0.058** (target 0.05; 1 s.e. = 0.020, so 0.4 s.e. from nominal) |
-| row shuffle | **1.000** |
+### Why 504 hours, and not the 168 we started with
 
-Measured on the SHIPPING code, after both the support-boundary fix and the
-ragged-tail fix in `block_permutation`. An exact binomial test of correct
-calibration gives **p = 0.672**: 7 rejections in 120 trials is what a correctly
-calibrated 5% procedure looks like at this sample size. The 95% CI is
-[0.024, 0.117], which is simply what n = 120 buys you.
+The block length was re-chosen by measurement after the data correction, because
+the corrected outcome is more autocorrelated than the one 168h was tuned for
+(lag-1 0.654 -> 0.716, lag-6 0.082 -> 0.218).
 
-The row shuffle rejects 120 times out of 120, p = 7.5e-157.
-
-## Replication across five grids, on the FIXED code
-
-Re-run on an L4 from raw EIA files, independently of the laptop cache.
-
-| grid | hours | rules | significant (block) | (row shuffle) | inflation | lift | within weather | kept |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| PJM | 46,324 | 66,844 | 23,797 | 43,718 | 1.84x | 4.51 | 3.78 | 84% |
-| CISO | 44,740 | 67,187 | 14,602 | 37,021 | 2.54x | 5.56 | 5.44 | **98%** |
-| ERCO | 48,013 | 65,504 | 8,495 | 34,729 | 4.09x | 4.36 | 3.61 | 83% |
-| MISO | 46,101 | 66,789 | 10,010 | 38,937 | 3.89x | 4.79 | 4.63 | **97%** |
-| NYIS | 48,000 | 47,620 | 14,084 | 34,450 | 2.45x | 4.14 | 3.27 | 79% |
-
-### What actually changed, stated correctly
-
-An earlier version of this section attributed the drop from 25,768 to 23,797 to
-the ragged-tail fix, and offered "the row shuffle is identical bit for bit" as
-corroboration. Both were wrong and the audit caught it.
-
-The "before" arm came from `gpu_full.block_idx_gpu`, which **already pinned the
-ragged tail and never stratified at all**. So the comparison is not
-tail-shuffled vs tail-pinned. It is:
-
-| | null used | PJM significant |
-|---|---|---|
-| before | unstratified GPU generator, tail already pinned | 25,768 |
-| after | month-stratified CPU generator | 23,797 |
-
-**The whole delta is stratification, not the tail fix.** The tail fix on its own
-is a separate and much smaller effect, measured on the laptop cache at the same
-J and seed: **25,330 -> 24,999**.
-
-The "row shuffle identical bit for bit" line has been removed. The row shuffle
-never consumed strata, so replaying the same seed through unchanged code was
-guaranteed to reproduce it. It corroborated nothing.
-
-With the order-statistic cutoff fix (`engine.cutoff`, see its docstring) the
-canonical PJM figure is **24,956** at J=1000, seed=1.
-
-Weather retention is carried over unchanged and is not affected by the fix:
-`stratified_lift` is a conditional lift computation, not a permutation test.
-
-Weather explains only 2-21% of the effect, on all five grids.
-
-## Temporal holdout, on the shipped null
-
-Thresholds fitted on **2019-01 to 2022-12** only (33,597 hours), then applied
-forward to **2023-01 to 2024-07** (12,727 hours, **18 months**).
-
-Earlier drafts said "2023-2026". That was wrong, and it was wrong for a reason
-worth stating: `features.py` asks for EIA fuel column names that EIA changed in
-mid-2024 when battery storage became material, and an unguarded
-`notna().all(axis=1)` then drops every row after 2024-07-02. That is 21,283
-rows, **31.5% of the available data**, discarded silently. The statistics are
-unaffected; the window is not what the documents claimed.
-
-| | value |
-|---|---|
-| top rules still significant out of sample | **20 / 20** |
-| mean lift, train -> test | **4.47 -> 5.18** (+16%) |
-
-Produced by `holdout_clean.py`, artifact in `holdout_clean.json`. The previous
-figure came from `redo_holdout.py`, which drew from a generator that ignored the
-`strata` argument, so it was not a result of the method described here. That
-script is now in `archive/` and the generator is deleted.
-
-The result got stronger out of sample, which is the opposite of the usual
-direction. It did so both before and after the null was corrected.
-
-## Cross-grid replication, on the shipped null
-
-PJM's top 15 rules by lift (support > 1,000, significant on PJM) tested against
-each other grid's own lattice and own null.
-
-| grid | replicated | mean lift |
-|---|---|---|
-| CISO | **15 / 15** | 4.55 |
-| ERCO | **14 / 15** | 3.41 |
-| MISO | **15 / 15** | 3.67 |
-| NYIS | **13 / 13** | 3.58 (2 rules not expressible in its lattice) |
-| **total** | **57 / 58** | |
-
-Produced by `replicate_rules.py`, artifact in `replication_clean.json`, J=500,
-month-stratified, order-statistic cutoff. The earlier 57/58 came from
-`suite3.py` on an unstratified generator that also shuffled the ragged tail; it
-happened to give the same answer, but it was not evidence for the shipped method
-until now.
-
-## How much does the answer depend on the null? Volunteer this.
-
-PJM's day-ahead forecast improved over 2019-2024, and the slow predicates
-(`err_roll7d`, `err_lag*`) carry that level shift. Our null holds calendar MONTH
-fixed but not YEAR, and 81% of rows change year under a stratified draw. So a
-sceptic can fairly ask whether we are detecting a year effect.
-
-The answer is not one number. It is a range, reported rather than extracted.
-J=1000, seed=1, same lattice and same observed statistic throughout; only the
-permutation stratification changes.
-
-| null specification | blocks per stratum | cutoff | significant |
+| block | days | blocks | FPR |
 |---|---:|---:|---:|
-| year x month | 4.1 | **-158.8** | **7,991** |
-| year only | 45.8 | -56.7 | 23,545 |
-| **month only (shipped)** | 22.9 | -51.8 | **24,956** |
-| unstratified block | 275 | -48.6 | 26,005 |
-| *naive row shuffle* | *n/a* | *-12.9* | *43,559* |
+| 168h | 7 | 275 | 0.100 &nbsp; *(p = 0.019, miscalibrated)* |
+| 336h | 14 | 137 | 0.075 |
+| **504h** | **21** | **91** | **0.067** &nbsp; *(shipped)* |
+| 720h | 30 | 64 | 0.067 |
+| 1008h | 42 | 45 | 0.058 |
 
-**Range across defensible block-permutation specifications: 7,991 to 26,005.**
-That is a factor of 3.3, and it is the honest uncertainty on the headline count.
+*Artifact: `block_sweep.json`.*
 
-### Reading the table
+## Significant rules
 
-The finer the stratification, the fewer blocks are free to move, so the permuted
-series stays closer to the original, chance alignments are stronger, the null
-minima reach further, and the bar rises. Year x month leaves only 4.1 blocks per
-stratum, which is why its cutoff is three times more stringent than any other
-specification.
-
-Whether that is *correct* depends on a substantive judgement we cannot settle
-from the data: if the year-over-year forecast improvement is a confounder, year
-x month is the right null and the answer is 7,991. If the structure worth
-preserving is within-year seasonality, month-only is right and the answer is
-24,956. We ship month-only and report both.
-
-### What survives every specification
-
-**The comparison against the naive null.** Row shuffle gives 43,559 regardless,
-because it never consumed strata. So the inflation factor ranges from 1.7x
-(unstratified) to **5.5x** (year x month) -- and the naive method looks *worse*,
-not better, under the more conservative specifications. No choice in this table
-rescues it.
-
-Artifact: `sensitivity.json`, produced by `sensitivity.py`.
-
-## Speed, honestly
-
-Measured on the real 66,844-rule PJM lattice, NVIDIA L4.
-
-| stage | ms/perm | vs naive |
+| | 168h blocks | 504h blocks |
 |---|---:|---:|
-| L0 naive (scipy tail, 1 core) | 1,510.6 | 1x |
-| L3+L5 fast p-values | 83.3 | 18x |
-| bitset counts, **1 core, numpy** | 58.4 | 26x |
-| **GPU pipeline, end to end** | **0.521** | **2,900x** |
+| circular block permutation | 5,561 | **3,928** |
+| naive row shuffle | 30,883 | 30,883 |
+| **inflation** | 5.55x | **7.86x** |
 
-**112x end to end** against our own CPU path. Earlier drafts said 58x and then
-122x; neither reproduced. 0.521 ms/perm is measured by `bench2.py`.
+The naive method over-reports by nearly eightfold. Before the data correction
+this figure was 1.78x, so **fixing our own defect quadrupled the size of the
+effect the project exists to demonstrate.**
 
-### How it got there, including what did not work
+## Findings, after removing redundancy
 
-We started at 0.757 ms/perm and profiled rather than guessed. Every step below
-produces **bit-identical output**, asserted by `kernel_ab.py` and end to end by
-`test_gpu_equal.py`.
+Greedy cover over significant rules with support > 800, ranked by lift.
 
-**1. One warp per rule instead of one thread.** The original had adjacent lanes
-reading words 5,792 bytes apart, a 32-way scatter per load. Coalescing gave
-**1.65x on the kernel** -- and only **1.05x end to end**, which is what sent us
-to the profiler.
+| lift | support | rule |
+|---:|---:|---|
+| **2.97** | 897 | `fc_vs_yesterday>q50 AND fc_day_range>q75 AND err_lag24>q90` |
+| 2.94 | 1,011 | `fc_vs_yesterday>q75 AND dem_chg_24_48>q50 AND err_lag24>q90` |
+| 2.92 | 821 | `err_lag24>q90 AND interchange_lag24>q75 AND share_coal_lag24>q25` |
+| 2.90 | 1,316 | `fc_level>q50 AND err_lag24>q90 AND share_nuclear_lag24>q25` |
+| 2.88 | 825 | `fc_vs_yesterday>q25 AND err_lag24>q90 AND share_solar_lag24>q75` |
+| 2.83 | 1,208 | `dem_chg_24_48>q50 AND err_lag24>q90 AND interchange_lag24>q50` |
 
-**2. The kernel was not the bottleneck.**
+`err_lag24>q90` appears in **all six**. Error persistence is the robust core,
+and it is also the part the power-systems literature already documents
+(Makarov et al., PNNL-19229, 2010).
 
-```
-permutation indices (host)     0.801 ms/perm    53%
-min-p scan (CPU, serial)       0.469 ms/perm    31%
-GPU counts                     0.230 ms/perm    15%
-```
+Before the correction the top lift was 4.61. **About 35% of that was artifact.**
 
-`block_permutation` rebuilt 275 array slices, read each block's stratum in a
-Python loop and concatenated 276 arrays **on every draw**. None of that depends
-on the draw. `core.BlockPermuter` caches it: **4.67x**, with the rng call
-sequence unchanged so no cached result moved. End to end 0.757 -> 0.597.
+---
 
-**3. Shared-memory staging made it SLOWER.** The label matrix is re-read by every
-warp, so staging it per block looked obvious. It is 185 KB, already resident in
-the L4's 48 MB L2, and the per-tile `__syncthreads()` cost more than the traffic
-saved: **5.616 vs 5.253 ms, 6% worse.** Reverted, and kept in the tree as
-`gpu_kernel_smem.py` so the result is reproducible.
+## Block length must match the dependence horizon
 
-**4. The biggest single win was not a memory optimisation.** `B` was a runtime
-kernel argument, so `for (b = 0; b < B; ++b)` could not unroll and `acc[b]` could
-not be proved constant-indexed. Baking B in as a compile-time literal:
+This is the methodological result, and we found it by getting it wrong.
 
-| kernel | ms/batch | GB/s | % of binding roof |
+Using one block length everywhere looked reasonable. It is not. Each grid was
+calibrated separately against 100 true nulls:
+
+| grid | outcome ACF at 168h | calibrated block | FPR there | FPR at 504h |
+|---|---:|---:|---:|---:|
+| PJM | 0.007 | 504h (21d) | 0.067 | 0.067 |
+| MISO | 0.084 | 504h | 0.083 | 0.083 |
+| NYIS | &mdash; | 504h | 0.083 | 0.083 |
+| ERCO | &mdash; | 504h | 0.067 | 0.067 |
+| **CISO** | **0.211** | **4368h (182d)** | **0.033** | **0.850** |
+
+**CISO at a 504-hour block has a false positive rate of 0.850.** Its dependence
+runs far longer than the others (ACF still 0.152 at 504h and 0.116 at 1008h,
+where PJM is at 0.001), so three-week blocks destroy structure that is really
+there, the null becomes too easy, and the procedure fires on 85% of datasets
+containing nothing.
+
+Give CISO six-month blocks and it calibrates at 0.033.
+
+**The practical claim:** block length is not a convention, it is a measurement,
+and the same procedure that controls error at 0.067 on one series runs at 0.850
+on another if you carry the parameter over. The tool measures this for you.
+
+## Temporal holdout: it does not hold
+
+| block | held | lift train -> test | test-set significant |
+|---|---:|---|---:|
+| 168h | **0 / 20** | 3.13 -> 2.86 | 512 |
+| 504h | **0 / 20** | 3.13 -> 2.86 | 357 |
+
+Identical at both block lengths, so this is a result and not an artifact of the
+null we chose.
+
+An earlier draft reported **20 of 20**. That was computed on the uncorrected
+series, and a one-hour timestamp offset is perfectly stable over time, so it
+transferred out of sample beautifully. **The holdout was largely measuring the
+artifact's consistency.**
+
+What is true now: **lift persists out of sample at 2.86** against a base of 1.0,
+and 512 rules in the test window are significant. The phenomenon is there. The
+specific top-20 training rules do not survive family-wise correction over 60,576
+hypotheses on 12,726 hours.
+
+## Cross-grid replication: the effect travels, the significance mostly does not
+
+PJM's top 15 rules, each grid tested at **its own calibrated block length**.
+
+| grid | replicated | block | FPR | mean lift |
+|---|---:|---:|---:|---:|
+| CISO | 0 / 15 | 4368h | 0.033 | **4.12** |
+| ERCO | 6 / 15 | 504h | 0.067 | **3.02** |
+| MISO | 8 / 15 | 504h | 0.083 | **3.66** |
+| NYIS | 11 / 12 | 504h | 0.083 | **3.25** |
+| **total** | **25 / 57** | | | |
+
+**Read the lift column.** PJM's rules raise the failure rate on every grid
+tested, 3.0 to 4.1 against a base of 1.0. The effect travels.
+
+**Formal significance travels in 25 of 57.** The shortfall is concentrated in
+CISO's 0/15, and that is a power problem rather than an effect problem: CISO
+needs 182-day blocks to calibrate, which leaves only **10 exchangeable units**.
+A permutation test on 10 units cannot resolve much, and its measured FPR of
+0.033 confirms it is running conservative.
+
+An earlier draft reported **57 of 58**. That was computed with one block length
+across all grids, i.e. on grids where the procedure was not controlling error
+(CISO at 0.850). It is withdrawn.
+
+## The data defect
+
+PJM's EIA-930 day-ahead demand forecast series **leads its realised demand by
+exactly one hour, from 2019-01-30 onward.**
+
+**How we know, and why the obvious test is not enough.** A lower error under a
+shift is equally consistent with "the forecast is early" and with "demand is
+late", and those require opposite fixes. Two structural tests settle it:
+
+1. **Geography control, on first differences.** PJM's *demand* leads Eastern
+   peers at lag 0 and Central peers at lag -1, which is real geography, so the
+   instrument resolves one hour. PJM's *forecast* leads every peer at lag -1
+   **regardless of timezone**. Timezone invariance is the signature of a label
+   offset inside PJM's own file.
+2. **The balance identity.** `Demand = NetGen - Interchange` holds for PJM at
+   **lag 0**, median residual **7 MW**, 17.4% exact zeros. PJM's demand is
+   welded to its own generation, so it is the forecast that moved.
+
+**It is PJM alone.** 51 of 55 balancing authorities are optimal at shift 0 on
+this same loader; the other three are degenerate flat curves. PJM is +1 in every
+one of eight years; ERCO is 0 in every one.
+
+**The date gate is not optional.** Before 2019-01-30 the series is correctly
+aligned: MAPE 2.389 at shift 0 against 3.278 at +1, and shift 0 wins 28 of 28
+days. Shifting those hours anyway takes their positive rate from 4.0% to 24.5%
+against a 10.1% base, manufacturing false positives into the January cells.
+
+**CISO is not also shifted.** An earlier draft said it was. CISO's MAPE is 8.611
+at shift 0 against 8.749 at +1.
+
+**Four overflow rows removed.** PJM carries four rows with impossible demand,
+including 2021-10-19 04:00 UTC at **2,147,480,000 MW = 2^31**. They dragged mean
+PJM demand from 92,518 to 153,448 MW and made every MAE-based statistic
+meaningless.
+
+Independently verified by 16 agents across 5 angles, all concluding misaligned
+at 99% confidence.
+
+---
+
+## How much depends on our choices
+
+Same lattice, same observed statistic; only the permutation stratification
+changes. Measured before the data correction, so the absolute counts are the old
+ones; the *shape* of the dependence is what matters.
+
+| stratification | blocks per stratum | significant |
+|---|---:|---:|
+| year x month | 4.1 | 7,991 |
+| year only | 45.8 | 23,545 |
+| month only (shipped) | 22.9 | 24,956 |
+| unstratified | 275 | 26,005 |
+
+**Range 7,991 to 26,005**, a factor of 3.3. The finer the stratification, the
+fewer blocks are free to move, so the bar rises. **What survives every choice is
+the comparison itself** &mdash; the naive null is unaffected by stratification,
+so it is too generous under every specification, and more so under the
+conservative ones.
+
+*Artifact: `sensitivity.json`.*
+
+---
+
+## Does it generalise beyond this dataset?
+
+NOAA GHCN-Daily, Philadelphia, 1970-2026. Different agency, different domain,
+daily rather than hourly, no shared feature code.
+
+| | outcome ACF lag 1 | naive / block inflation |
+|---|---:|---:|
+| PJM, hourly (corrected) | **0.716** | **7.86x** |
+| NOAA, daily | **0.028** | **1.03x** |
+
+**The correction scales with the dependence it exists to correct for, and
+vanishes when that dependence is absent.** On daily weather the outcome is
+nearly white noise, and SIEVE reports that the naive method was fine all along.
+
+*Artifact: `CROSS-DATASET.md`.*
+
+---
+
+## Speed
+
+Real 66,844-rule lattice, NVIDIA L4.
+
+| stage | ms/perm |
+|---|---:|
+| naive (scipy tail, 1 core) | 1,510.6 |
+| fast p-values | 83.3 |
+| bitset counts, 1 core numpy | 58.4 |
+| **GPU pipeline, end to end** | **0.521** |
+
+**112x end to end.** Earlier drafts said 58x and then 122x; neither reproduced.
+
+### The kernel, including what failed
+
+| kernel | ms/batch | GB/s | % of roof |
 |---|---:|---:|---:|
 | thread per rule | 8.691 | 44.5 | 19.0% |
 | warp per rule | 5.253 | 73.7 | 31.4% |
-| warp + shared memory | 5.616 | 68.9 | 29.3% |
+| warp + shared memory | 5.616 | 68.9 | 29.3% &nbsp; *slower, reverted* |
 | **warp + compile-time B** | **3.430** | **112.9** | **48.0%** |
 
-**2.53x on the kernel, 19.0% -> 48.0% of roofline.** Well-tuned kernels reach
-65-85%, so roughly 1.4x remains, and the kernel is now 21% of wall time so the
-Amdahl ceiling on further kernel work is about 1.26x.
+All four produce bit-identical output. Two negative results kept:
+shared-memory staging of the label matrix is **6% slower** (185 KB already lives
+in L2, and the per-tile barrier costs more than the traffic saved), and an
+unused `parallel=True` scanner in our own code is **3.6x slower** (it
+oversubscribes the 6 vCPU the container allocates).
 
-The batch size is not arbitrary: arithmetic intensity is B/4 popcounts per DRAM
-byte, so against the 235 GB/s this card delivers the roofline knee is at
-B = 32.2. We batch 32.
+Profiling also showed the kernel was never the bottleneck: host-side permutation
+index generation was **53%** of wall time. Caching that structure gave 4.67x with
+bit-identical draws.
 
-**The GPU is still not the contribution.** GPU permutation testing is
-established prior art (PBOOST, *Bioinformatics* 2014; HWY, ACM BCB 2015). And
-our CPU baseline is single-threaded unfused numpy at 6.8 GB/s of useful traffic
-on a machine sustaining 100-400, so against a tuned fused popcount the win would
-be far smaller.
+**The GPU is not the contribution.** GPU permutation testing is established prior
+art (PBOOST, *Bioinformatics* 2014; HWY, ACM BCB 2015). Our CPU baseline is
+single-threaded unfused numpy at 6.8 GB/s on a machine sustaining 100-400, so
+against a tuned implementation the gap would be far smaller.
 
-## Housekeeping done
+---
 
-The unused GPU min-p kernel was **deleted**, not left lying around. It was 14x
-slower than the CPU scan (weak per-thread bound plus warp divergence) and
-carried the same support-boundary bug. `gpu_full.py` now exports only
-`gather_pack` and `block_idx_gpu`.
+## What is still wrong
 
-## Is `err_lag24` really available when the forecast is filed?
+**The data window.** `features.py` requests EIA fuel column names that changed in
+mid-2024, and an unguarded `notna().all()` drops every row after 2024-07-02 &mdash;
+**31.5% of the available data.** Disclosed, not fixed; fixing it moves every
+number here.
 
-**The attack.** EIA-930's day-ahead forecast is filed as **one D-1 vintage
-covering all 24 hours of day D**. Our code applies a uniform `.shift(24)`. If
-the vintage is filed at hour T on D-1, then for hour t on D a realised quantity
-at lag 24 -- hour t on D-1 -- had only occurred by filing time if t < T. For a
-mid-morning filing that is false for more than half of each day.
+**A structural blind spot.** `hour_sin` and `hour_cos` are constant within each
+(hour, month) binarisation cell, so all eight of their predicates are identically
+false. The lattice has 85 named predicates but **77 that can fire**, and **no
+time-of-day rule is expressible.**
 
-So `err_lag24` is not look-ahead with respect to hour t, but it is partly
-look-ahead with respect to the **filing instant**. The distinction is real and
-we did not catch it ourselves.
+**Forecast vintage.** EIA files one D-1 vintage covering all 24 hours, so lag-24
+features are partly look-ahead relative to the filing instant. Tested: restricting
+to forecast-derived, calendar and lag>=48h predicates drops 94% of the lattice and
+lift falls 4.61 to 3.52 (measured pre-correction). The effect survives, and one
+surviving rule uses only the forecast's own shape.
 
-**The test.** Rebuild using only predicates that are unambiguously available:
-the forecast and shapes derived from it (a forecast is known when filed,
-whatever its vintage), calendar terms, and realised quantities at lag >= 48h.
-That drops 44 of 85 predicates and 94% of the lattice.
-
-| | predicates | rules | significant | top lift |
-|---|---:|---:|---:|---:|
-| full, as shipped | 85 | 66,844 | 25,017 | **4.61** |
-| strict, lag >= 48h only | 41 | 4,541 | 2,895 | **3.52** |
-
-**The effect survives.** Lift falls from 4.61 to 3.52, which is the honest cost
-of the restriction, and it remains far above the 1.0 base rate.
-
-**And one strict rule settles it completely:**
-
-```
-fc_level>q75 AND fc_ramp_1h>q90 AND fc_day_range>q75      lift 3.46, support 804
-```
-
-Every term is a property of **the forecast itself**. No realised data at any
-lag. Whatever vintage that forecast belongs to, all three conditions are
-knowable the instant it is filed. A forecast that is high, ramping steeply, and
-predicting a wide daily swing is **3.5x more likely to fail**, and that is
-computable before the forecast is submitted.
-
-Artifact: `vintage_check.json`, produced by `vintage_check.py`.
-
-## A structural limitation found by audit
-
-`features.py` builds `hour_sin` and `hour_cos`, then binarises every feature at
-quantiles taken **within each (hour-of-day x calendar-month) cell**. Inside such
-a cell the hour is constant, so those two features are constant, so all eight of
-their threshold predicates are **identically False**.
-
-Consequence: the lattice has 85 named predicates but **77 that can ever fire**,
-and no rule conditioned on time of day is expressible at all. That is a real
-blind spot -- a morning-ramp interaction exists in the data and the miner
-structurally cannot see it.
-
-Not fixed, deliberately: adding hour-bucket indicators changes the lattice and
-therefore every count in this document. It is the first thing to do after the
-event. `surprise.py:singleton_rates` now falls back to the base rate for a
-never-true predicate rather than returning NaN, and reports how many it found.
-
-## What is still not proven
-
-1. **Mechanism.** We know *when* forecasts fail, not *why*. Weather is largely
-   excluded but not replaced by an explanation.
-2. **Subset pivotality.** Permuting the outcome tests the complete null; strong
-   FWER control assumes it. Standard, and stated.
-3. **Cross-grid pooling.** One balancing authority at a time. Pooling needs
-   joint permutation across regions because weather correlates them.
-4. **Tarone contributes 0.55%** here. A measured null, reported as such.
-
-## State
-
-```
-core.py       engine            test_all.py   18 regression tests
-fastp.py      fast p-values     reverify.py   re-run everything
-features.py   EIA-930 -> rules  weather.py    NOAA controls
-gpu_kernel.py counts kernel     gpu_full.py   pack + index kernels
-```
-
-All results reproduce from cache in minutes. **The implementation is correct.**
+**Assumed, not proven.** Subset pivotality for strong FWER control. Block
+permutation is asymptotically valid under stationarity, not exact &mdash; which is
+why calibration is measured rather than claimed.

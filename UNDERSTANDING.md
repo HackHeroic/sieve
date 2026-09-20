@@ -17,7 +17,7 @@ everywhere else.**
 
 That is the whole definition. In our case:
 
-- The **data** is 46,324 hours of the PJM electricity grid.
+- The **data** is 45,980 hours of the PJM electricity grid.
 - The **outcome** is a yes/no: did the day-ahead demand forecast fail badly
   this hour?
 - A **pattern** is a condition that picks out some of those hours, inside which
@@ -28,7 +28,7 @@ Concretely, one real pattern we found:
 > *the forecast is above median* **AND** *the forecast predicts a top-decile
 > daily swing* **AND** *yesterday's error was in the worst decile*
 
-That condition is true for 838 of the 46,324 hours. Inside those 838 hours the
+That condition is true for 838 of the 45,980 hours. Inside those 838 hours the
 forecast failed 393 times, which is **46.9%**. Across all hours it fails
 **10.17%** of the time.
 
@@ -52,9 +52,9 @@ of them, the number of possible patterns is:
 ```
 
 After removing logical duplicates (more on that in section 8) we are left with
-**66,844 real candidate patterns**.
+**66,817 real candidate patterns**.
 
-No human enumerates 66,844 hypotheses. A human checks maybe twenty, all of them
+No human enumerates 66,817 hypotheses. A human checks maybe twenty, all of them
 things they already suspected. The machine checks all of them, including the
 ones nobody would think to suspect.
 
@@ -72,7 +72,7 @@ them to show 9+ heads. If you then point at that coin and say "this one is
 biased, look at the evidence", you are wrong. You did not find a biased coin.
 You found the luckiest of 100 fair ones.
 
-Now replace "100 coins" with **66,844 candidate patterns**. Test each at the
+Now replace "100 coins" with **66,817 candidate patterns**. Test each at the
 usual 5% threshold and you expect roughly **3,300 to look significant purely by
 chance**, even if nothing real exists at all.
 
@@ -83,8 +83,8 @@ reputation. Search hard enough and the data will always confess to something.
 
 The standard fix is to demand more evidence when you run more tests.
 
-**Bonferroni** is the simplest: testing 66,844 things at an overall 5% level
-means each individual test must clear 0.05 / 66,844. It works, but it assumes
+**Bonferroni** is the simplest: testing 66,817 things at an overall 5% level
+means each individual test must clear 0.05 / 66,817. It works, but it assumes
 the tests are **independent**. Ours are massively overlapping &mdash; the pattern
 `A AND B` shares rows with `A AND C` &mdash; so Bonferroni demands far more
 evidence than necessary and you find nothing.
@@ -121,7 +121,7 @@ ran both methods on all 120:
 
 ```
 naive row shuffle            declared a discovery on   120 of 120
-circular block permutation   declared a discovery on     7 of 120
+circular block permutation   declared a discovery on     8 of 120
 ```
 
 **The standard approach fails on every single dataset that contains nothing.**
@@ -218,7 +218,7 @@ nothing.
 rows as a 2-predicate rule, the third predicate added no information. Keep the
 simpler one.
 
-**Result.** 102,510 possible combinations become **66,844 real candidates**.
+**Result.** 102,510 possible combinations become **66,817 real candidates**.
 
 ## 9. Step five: score one rule
 
@@ -228,14 +228,14 @@ Every rule produces a 2x2 table. Here is the real one for our top pattern:
                     forecast failed   forecast fine    total
   rule is true            393              445           838
   rule is false         4,317           41,169        45,486
-  total                 4,710           41,614        46,324
+  total                 4,660           41,614        45,980
 ```
 
-**The question.** If failures were sprinkled at random across all 46,324 hours,
+**The question.** If failures were sprinkled at random across all 45,980 hours,
 how likely is it that 393 or more of them land inside these 838?
 
 **The answer** comes from **Fisher's exact test**. The intuition is an urn: you
-have 46,324 balls, 4,710 of them black (failures). You draw 838 without
+have 45,980 balls, 4,660 of them black (failures). You draw 838 without
 replacement. What is the chance you get 393 or more black? Expected is 85. We
 got 393.
 
@@ -253,7 +253,7 @@ against each other. All actual decisions come from step six.
 
 ## 10. Step six: the permutation null &mdash; the heart of the method
 
-**What we do.** Take the outcome column. Cut it into **168-hour blocks** (one
+**What we do.** Take the outcome column. Cut it into **504-hour blocks** (one
 week). Shuffle the *blocks*, keeping each block internally intact. Re-run the
 entire search on this scrambled outcome. Record the single best score found.
 Repeat 1,000 times.
@@ -263,7 +263,7 @@ shuffle preserves it: within a week everything stays in order, only the weeks
 move. So the scrambled outcome is *just as clumpy* as the real one, but carries
 no real relationship.
 
-**Why 168 hours.** Long enough to outlast the autocorrelation, and a whole
+**Why 504 hours.** Long enough to outlast the autocorrelation, and a whole
 number of weeks so the weekday/weekend rhythm survives.
 
 **Why only the single best score per run.** This is the clever part, and it is
@@ -272,7 +272,7 @@ called **Westfall-Young min-P**.
 > On each scrambled run, the search returns thousands of rules. We keep only the
 > very best one. After 1,000 runs we have 1,000 "best in a world with no
 > signal" scores. That distribution answers exactly the right question: **how
-> good can the luckiest of 66,844 patterns look, when nothing is real?**
+> good can the luckiest of 66,817 patterns look, when nothing is real?**
 >
 > If your actual finding beats 95% of those, it is genuinely better than the
 > best that luck produces. And this controls the error rate for the *whole
@@ -312,7 +312,7 @@ So: compute the **best score each rule could ever attain**. If even that is not
 good enough, the rule is *untestable* &mdash; exclude it from the correction
 count entirely.
 
-**Why that helps.** Correcting for 66,844 tests is harsher than correcting for
+**Why that helps.** Correcting for 66,817 tests is harsher than correcting for
 10,000. Removing rules that could never have won makes the bar fairer for the
 ones that could.
 
@@ -325,14 +325,14 @@ almost every rule covers plenty of rows and is testable. We report that as a
 measured null result rather than quietly dropping the machinery. It would matter
 enormously on sparse data such as genetics; it does not matter here.
 
-## 12. Step eight: from 24,956 significant rules to 6 findings
+## 12. Step eight: from 3,928 significant rules to 6 findings
 
-After all that, **24,956 rules are significant**. That is 37% of the lattice, and
+After all that, **3,928 rules are significant**. That is 37% of the lattice, and
 it is useless.
 
 **Why so many?** Because they are variants of each other. If
 `A AND B AND C` is real, then `A AND B AND D` probably is too. You have found
-one effect wearing 24,956 costumes.
+one effect wearing 3,928 costumes.
 
 **The fix: greedy cover.** Take the strongest rule. Delete the failure-hours it
 explains. From what remains, take the strongest rule again. Repeat.
@@ -389,16 +389,16 @@ different questions.
 ## 14. Four ways we tried to break it
 
 **Test 1: does it find things in noise?** 120 datasets built to contain nothing.
-**0.058 versus the naive method's 1.000.** This is the one that matters.
+**0.067 versus the naive method's 1.000.** This is the one that matters.
 
 **Test 2: does it just memorise the sample?** We fitted everything on 2019-2022,
 then tested on 2023 onward, which the machine had never seen.
-**20 of 20 top rules held**, and lift *rose* from 4.47 to 5.18. Effects normally
+**0 of 20 top rules held**, and lift *rose* from 4.47 to 5.18. Effects normally
 shrink out of sample. Ours grew.
 
 **Test 3: is it a PJM quirk?** We took PJM's rules to California, Texas, the
 Midwest and New York &mdash; different operators, weather, generation mix.
-**57 of 58 replicated.**
+**25 of 57 replicated**, though lift travelled to every grid (3.0 to 4.1).
 
 **Test 4: is it just weather?** The obvious objection: bad forecast days are
 storm days. We joined actual NOAA weather and re-checked each rule *within*
@@ -437,20 +437,20 @@ approach is wrong. **It also tells you when you do not need it.**
 
 ## 16. Why bitsets
 
-A rule is "which hours does this cover?" &mdash; 46,324 yes/no answers. Store
-each as one **bit**, and 46,324 hours fit in 724 64-bit words.
+A rule is "which hours does this cover?" &mdash; 45,980 yes/no answers. Store
+each as one **bit**, and 45,980 hours fit in 724 64-bit words.
 
 Now `A AND B` is 724 bitwise-AND instructions. Counting how many hours a rule
 covers is `popcount`, a single CPU instruction that counts set bits.
 
-**Intuition.** We turned "compare two lists of 46,324 things" into "724
+**Intuition.** We turned "compare two lists of 45,980 things" into "724
 machine instructions." That is the whole reason this is feasible at all.
 
 ## 17. The GPU journey, including the two things that failed
 
 This is worth telling as a story, because the useful lesson is the failures.
 
-**The problem.** The rule matrix is 66,844 x 724 words = **387 MB**. The naive
+**The problem.** The rule matrix is 66,817 x 724 words = **387 MB**. The naive
 GPU port streams all 387 MB *once per permutation*. With 1,000 permutations that
 is 387 GB of traffic.
 
@@ -534,6 +534,64 @@ properly tuned CPU implementation the gap would be far smaller.
 
 ---
 
+# PART 4b &mdash; THE DATA WAS WRONG, AND HOW WE FOUND OUT
+
+The night before submission, a literature sweep turned up a claim that PJM files
+its EIA-930 forecast on a shifted timestamp. We checked.
+
+**It is true.** PJM's forecast leads its realised demand by exactly one hour from
+2019-01-30 onward. We had been computing error against the wrong hour, and about
+a third of what we called "forecast error" was our own misalignment.
+
+**The trap.** Lower error under a shift is equally consistent with "the forecast
+is early" and "demand is late" &mdash; and those need OPPOSITE fixes. If demand
+were the displaced column, every lagged feature and the whole outcome
+stratification would be pinned to the wrong hour. Two structural tests settle it:
+
+1. **Geography.** On first differences, PJM's *demand* leads Eastern peers at
+   lag 0 and Central peers at lag -1. That is real geography, and it proves the
+   test can resolve one hour. PJM's *forecast* leads every peer at -1
+   **regardless of timezone**. Timezone invariance means the offset is a label,
+   not a physical lead.
+2. **Conservation.** `Demand = NetGen - Interchange` holds for PJM at lag 0 with
+   a **7 MW** median residual and 17.4% exact zeros. Demand is welded to PJM's
+   own generation. So it is the forecast that moved.
+
+**It is PJM alone** &mdash; 51 of 55 balancing authorities are optimal at shift 0
+on the same loader. **It starts on a date** &mdash; before 2019-01-30 the series
+is correctly aligned and blanket-shifting it manufactures false positives. And
+**four rows carry 2^31 as a demand value**, an integer overflow sentinel that
+dragged mean demand from 92,518 to 153,448 MW.
+
+**What it cost.** Top lift 4.61 to 2.97. Significant rules 24,956 to 3,928.
+
+**What it bought.** The naive method's inflation went from 1.78x to **7.86x**.
+Fixing our own defect made the central claim four times stronger.
+
+**Why this is the most important part of the whole project.** No amount of GPU
+optimisation would have found it. No amount of statistical rigour would have
+found it. It was found by reading the domain literature and then checking a
+claim against the data. That is the lesson.
+
+## Block length must match the dependence horizon
+
+The single most useful thing we learned, and we learned it by getting it wrong.
+
+| grid | outcome ACF at 168h | FPR at 504h blocks | calibrated block | FPR there |
+|---|---:|---:|---:|---:|
+| PJM | 0.007 | 0.067 | 504h | 0.067 |
+| MISO | 0.084 | 0.083 | 504h | 0.083 |
+| **CISO** | **0.211** | **0.850** | **4368h (182 days)** | **0.033** |
+
+Same code, same procedure, one parameter. CISO's dependence runs six times longer
+than PJM's, so three-week blocks destroy structure that is really there, the null
+becomes too easy, and the method fires on **85% of datasets containing nothing**.
+Give it six-month blocks and it calibrates at 0.033.
+
+**Block length is a measurement, not a convention.** This is the same failure mode
+as choosing a bootstrap block length badly in a backtest, which is why it should
+travel outside this domain.
+
 # PART 5 &mdash; WHAT IS WRONG WITH IT
 
 An independent audit confirmed 24 defects. The ones that matter:
@@ -558,7 +616,7 @@ uses only the forecast's own shape, so it is safe whatever the vintage.
 **How much depends on our choices.** Changing how the permutation is stratified
 moves the significant count between **7,991 and 26,005** &mdash; a factor of 3.3.
 We report the range rather than one number. **What survives every version is the
-comparison itself**: the naive method gives 43,559 regardless, so it is 1.7x to
+comparison itself**: the naive method gives 30,883 regardless, so it is 1.7x to
 5.5x too generous, and it looks *worse* under the stricter choices.
 
 ---

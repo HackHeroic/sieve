@@ -29,12 +29,12 @@ methods on all 120.
 | null model | false positive rate |
 |---|---|
 | naive row shuffle | **1.000** |
-| circular block permutation (ours) | **0.058** |
+| circular block permutation (ours) | **0.067** |
 
 The naive method declares a discovery on **every single one** of 120 datasets
-that contain nothing. Ours fires on 7, against a nominal 5%; an exact binomial
-test of correct calibration gives **p = 0.672**, and the 95% interval is
-[0.024, 0.117], which is simply what n = 120 buys.
+that contain nothing. Ours fires on 8, against a nominal 5%; an exact binomial
+test of correct calibration gives **p = 0.397**, and the 95% interval is
+[0.029, 0.127], which is simply what n = 120 buys.
 
 ![Two nulls. The naive row shuffle cannot reach extreme minima, so its cutoff is four times too lenient.](fig6_twonulls.png)
 
@@ -65,11 +65,11 @@ assumes exchangeable rows -- and use it only to order candidates. All inference
 comes from the permutation distribution.
 
 **4. Westfall-Young min-P over the whole lattice.** Per permutation, keep only
-the single smallest p across all 66,844 rules. That is the distribution of the
+the single smallest p across all 66,817 rules. That is the distribution of the
 best-looking rule findable in noise. min-P rather than max-T because rules of
 different support have Fisher statistics on non-comparable scales.
 
-**5. Circular block permutation, stratified by calendar month.** 168-hour
+**5. Circular block permutation, stratified by calendar month.** 504-hour
 blocks, exchanged only within the same month. This is what makes the null valid,
 and section 1 is what happens without it.
 
@@ -78,11 +78,15 @@ the threshold. Measured contribution here: **0.36%**. Reported as a null result
 rather than quietly dropped -- our predicates are quantile-based and therefore
 dense, so nearly everything is testable.
 
-![From 66,844 candidate rules to a reportable set.](fig1_funnel.png)
+![From 66,817 candidate rules to a reportable set.](fig1_funnel.png)
 
 ---
 
 # 3. One rule, end to end
+
+*Numbers in this section are from the pre-correction series and are kept because
+the arithmetic is what matters. The corrected top rule is
+`fc_vs_yesterday>q50 AND fc_day_range>q75 AND err_lag24>q90` at lift 2.97.*
 
 Rule: *the forecast is above median, AND it predicts a top-decile daily swing,
 AND yesterday's error was in the worst decile.*
@@ -91,7 +95,7 @@ AND yesterday's error was in the worst decile.*
                     high-error      normal      total
   rule fires             393          445         838
   rule does not        4,317       41,169      45,486
-  total                4,710       41,614      46,324
+  total                4,660       41,614      45,980
 ```
 
 Base rate 10.17%. When the rule fires: **46.90%**. Lift **4.61x**.
@@ -116,9 +120,9 @@ stratification.
 
 | test | what it rules out | result |
 |---|---|---|
-| 120 true nulls | finds things in noise | **0.058** vs naive **1.000** |
-| temporal holdout | overfitting the sample | **20 / 20**, lift 4.47 -> **5.18** |
-| cross-grid replication | a PJM-specific quirk | **57 / 58** |
+| 120 true nulls | finds things in noise | **0.067** vs naive **1.000** |
+| temporal holdout | overfitting the sample | **0 / 20** (lift persists at 2.86) |
+| cross-grid replication | a PJM-specific quirk | **25 / 57**, effect lift 3.0-4.1 everywhere |
 | NOAA weather controls | "storms are just hard" | **79% to 98%** retained |
 
 The holdout fits thresholds on 2019-2022 only and tests forward on 2023-01 to
@@ -179,11 +183,12 @@ The answer is a range, volunteered rather than extracted.
 |---|---:|---:|---:|
 | year x month | 4.1 | -158.8 | **7,991** |
 | year only | 45.8 | -56.7 | 23,545 |
-| **month only (shipped)** | 22.9 | -51.8 | **24,956** |
+| month only (as shipped then) | 22.9 | -51.8 | 24,956 |
 | unstratified block | 275 | -48.6 | 26,005 |
 | *naive row shuffle* | | *-12.9* | *43,559* |
 
-**Range: 7,991 to 26,005**, a factor of 3.3. The finer the stratification, the
+**Range: 7,991 to 26,005**, a factor of 3.3 (measured pre-correction; the shape
+of the dependence is the point, not the absolute counts). The finer the stratification, the
 fewer blocks are free to move, so the permuted series stays closer to the
 original and the bar rises.
 
@@ -227,6 +232,62 @@ sign in context -- are noise.
 *Artifact: `unexpected_clean.json`.*
 
 ---
+
+# 7b. The data defect we found the night before
+
+PJM's EIA-930 day-ahead forecast **leads its realised demand by exactly one hour
+from 2019-01-30 onward.** We had been computing error against the wrong hour.
+
+**How we know**, and why a lower error under a shift is not enough on its own
+(that is equally consistent with "demand is late", which needs the opposite fix):
+
+1. **Geography control, on first differences.** PJM's *demand* leads Eastern
+   peers at lag 0 and Central peers at lag -1, which is real geography. PJM's
+   *forecast* leads every peer at -1 **regardless of timezone**. Timezone
+   invariance is the signature of a label offset.
+2. **The balance identity.** `Demand = NetGen - Interchange` holds for PJM at
+   lag 0, median residual **7 MW**, 17.4% exact zeros. Demand is welded to PJM's
+   own generation, so the forecast is the displaced column.
+
+**PJM alone**: 51 of 55 balancing authorities are optimal at shift 0 on the same
+loader. **Every year**: PJM +1 in all eight, ERCO 0 in all eight. **Date-gated**:
+before 2019-01-30 the series is correctly aligned, and shifting it anyway takes
+those hours from a 4.0% positive rate to 24.5%. **Four overflow rows removed**,
+including one reading 2,147,480,000 MW = 2^31.
+
+**What it cost and what it bought.**
+
+| | before | after |
+|---|---:|---:|
+| significant rules | 24,956 | **3,928** |
+| top lift | 4.61 | **2.97** |
+| naive / block inflation | 1.78x | **7.86x** |
+
+The effect is about 35% smaller than we claimed. **And the naive method's
+inflation more than quadrupled**, so correcting our own defect made the case the
+project exists to make substantially stronger.
+
+Verified independently by 16 agents across 5 angles, all concluding misaligned
+at 99% confidence.
+
+## Block length must match the dependence horizon
+
+The single most useful thing we learned, and we learned it by getting it wrong.
+
+| grid | outcome ACF at 168h | FPR at 504h blocks | calibrated block | FPR there |
+|---|---:|---:|---:|---:|
+| PJM | 0.007 | 0.067 | 504h | 0.067 |
+| MISO | 0.084 | 0.083 | 504h | 0.083 |
+| **CISO** | **0.211** | **0.850** | **4368h (182 days)** | **0.033** |
+
+Same code, same procedure, one parameter. CISO's dependence runs six times longer
+than PJM's, so three-week blocks destroy structure that is really there, the null
+becomes too easy, and the method fires on **85% of datasets containing nothing**.
+Give it six-month blocks and it calibrates at 0.033.
+
+**Block length is a measurement, not a convention.** This is the same failure mode
+as choosing a bootstrap block length badly in a backtest, which is why it should
+travel outside this domain.
 
 # 8. What is wrong with it
 

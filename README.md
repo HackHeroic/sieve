@@ -28,7 +28,7 @@ Data is not in the repo (650 MB EIA + 71 MB NOAA). Fetch with `data/fetch.sh`.
 4. **Fisher's exact test ranks; it does not decide.** All validity comes from the
    permutation distribution.
 5. **Westfall-Young min-P** controls family-wise error across the whole lattice.
-6. **Circular block permutation**, 168h blocks stratified by calendar month,
+6. **Circular block permutation**, 504h blocks stratified by calendar month,
    because hours are not exchangeable.
 7. **Tarone's testability bound** removes rules that can never reach the
    threshold. Measured contribution here: 0.36-0.55%, reported as a null result.
@@ -37,9 +37,9 @@ Data is not in the repo (650 MB EIA + 71 MB NOAA). Fetch with `data/fetch.sh`.
 
 | | |
 |---|---|
-| Calibration, 120 true nulls | **0.058** block vs **1.000** naive row shuffle (p = 0.67) |
-| PJM significant at 5% FWER | **24,956** block vs 43,603 row shuffle (J=1000, seed=1) |
-| Cross-dataset | NOAA daily: outcome ACF 0.028, inflation **1.03x**. PJM hourly: ACF 0.654, inflation **1.84x** |
+| Calibration, 120 true nulls | **0.067** block vs **1.000** naive row shuffle (p = 0.40) |
+| PJM significant at 5% FWER | **3,928** block vs **30,883** row shuffle, **7.86x** inflation |
+| Cross-dataset | NOAA daily: outcome ACF 0.028, inflation **1.03x**. PJM hourly: ACF 0.716, inflation **7.86x** |
 
 The cross-dataset result is the interesting one: **the correction scales with the
 dependence it exists to correct for, and vanishes when that dependence is
@@ -64,9 +64,10 @@ See `FINAL.md` for the full list. The load-bearing ones:
 
 - **Data window.** `features.py` asks for EIA fuel column names that changed in
   mid-2024, so rows after 2024-07-02 are silently dropped. The working set is
-  46,324 hours, not the 65,036 available.
-- **The holdout (20/20) and replication (57/58) figures were produced by an
-  unstratified permutation generator** and are not results of the shipped code.
+  45,980 hours, not the 65,036 available.
+- **PJM's forecast series is offset by one hour** from 2019-01-30; we correct it
+  (`fc_shift=1`, date-gated) and four 2^31 overflow rows are removed. Four of the
+  five grids were never affected.
 - **The null holds calendar month fixed but not year.** Across defensible null
   specifications the PJM count spans roughly 16,700 to 30,400.
 - GPU acceleration of permutation testing is established prior art (PBOOST 2014,

@@ -1,0 +1,133 @@
+{
+ "block168": {
+  "sig_block": 5561,
+  "sig_row": 30883,
+  "inflation": 5.553497572379069,
+  "boot": 5516,
+  "boot_sd": 216,
+  "findings": [
+   {
+    "idx": 38234,
+    "rule": "fc_vs_yesterday>q50 AND fc_day_range>q75 AND err_lag24>q90",
+    "support": 897,
+    "lift": 2.9699857895416772,
+    "logp": -143.55415603236858,
+    "new_hours": 270
+   },
+   {
+    "idx": 40247,
+    "rule": "fc_vs_yesterday>q75 AND dem_chg_24_48>q50 AND err_lag24>q90",
+    "support": 1011,
+    "lift": 2.937638763303235,
+    "logp": -157.44483142232878,
+    "new_hours": 117
+   },
+   {
+    "idx": 60839,
+    "rule": "err_lag24>q90 AND interchange_lag24>q75 AND share_coal_lag24>q25",
+    "support": 821,
+    "lift": 2.920425734344696,
+    "logp": -125.65278216816439,
+    "new_hours": 156
+   },
+   {
+    "idx": 7248,
+    "rule": "fc_level>q50 AND err_lag24>q90 AND share_nuclear_lag24>q25",
+    "support": 1316,
+    "lift": 2.9016038978827767,
+    "logp": -199.44567108135774,
+    "new_hours": 137
+   },
+   {
+    "idx": 37502,
+    "rule": "fc_vs_yesterday>q25 AND err_lag24>q90 AND share_solar_lag24>q75",
+    "support": 825,
+    "lift": 2.882346208869814,
+    "logp": -121.97254325164452,
+    "new_hours": 58
+   },
+   {
+    "idx": 56497,
+    "rule": "dem_chg_24_48>q50 AND err_lag24>q90 AND interchange_lag24>q50",
+    "support": 1208,
+    "lift": 2.8342985248557544,
+    "logp": -171.56107837250386,
+    "new_hours": 61
+   }
+  ],
+  "covered": 799
+ },
+ "block504": {
+  "sig_block": 3928,
+  "sig_row": 30883,
+  "inflation": 7.862270875763747,
+  "boot": 3948,
+  "boot_sd": 119,
+  "findings": [
+   {
+    "idx": 38234,
+    "rule": "fc_vs_yesterday>q50 AND fc_day_range>q75 AND err_lag24>q90",
+    "support": 897,
+    "lift": 2.9699857895416772,
+    "logp": -143.55415603236858,
+    "new_hours": 270
+   },
+   {
+    "idx": 40247,
+    "rule": "fc_vs_yesterday>q75 AND dem_chg_24_48>q50 AND err_lag24>q90",
+    "support": 1011,
+    "lift": 2.937638763303235,
+    "logp": -157.44483142232878,
+    "new_hours": 117
+   },
+   {
+    "idx": 60839,
+    "rule": "err_lag24>q90 AND interchange_lag24>q75 AND share_coal_lag24>q25",
+    "support": 821,
+    "lift": 2.920425734344696,
+    "logp": -125.65278216816439,
+    "new_hours": 156
+   },
+   {
+    "idx": 7248,
+    "rule": "fc_level>q50 AND err_lag24>q90 AND share_nuclear_lag24>q25",
+    "support": 1316,
+    "lift": 2.9016038978827767,
+    "logp": -199.44567108135774,
+    "new_hours": 137
+   },
+   {
+    "idx": 37502,
+    "rule": "fc_vs_yesterday>q25 AND err_lag24>q90 AND share_solar_lag24>q75",
+    "support": 825,
+    "lift": 2.882346208869814,
+    "logp": -121.97254325164452,
+    "new_hours": 58
+   },
+   {
+    "idx": 56497,
+    "rule": "dem_chg_24_48>q50 AND err_lag24>q90 AND interchange_lag24>q50",
+    "support": 1208,
+    "lift": 2.8342985248557544,
+    "logp": -171.56107837250386,
+    "new_hours": 61
+   }
+  ],
+  "covered": 799
+ },
+ "calibration_504h": {
+  "block": 0.06666666666666667,
+  "row": 1.0,
+  "n": 120,
+  "J": 300,
+  "block_hours": 504
+ },
+ "meta": {
+  "hours": 45980,
+  "positive": 4660,
+  "rules": 66817,
+  "fc_shift": 1,
+  "date_gated": "2019-01-30",
+  "corrupt_rows_removed": true
+ }
+}

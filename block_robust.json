@@ -1,0 +1,38 @@
+{
+ "holdout_168": {
+  "held": 0,
+  "tested": 20,
+  "test_significant": 512,
+  "lift_train": 3.1297757228518064,
+  "lift_test": 2.8598586605579537
+ },
+ "holdout_504": {
+  "held": 0,
+  "tested": 20,
+  "test_significant": 357,
+  "lift_train": 3.1297757228518064,
+  "lift_test": 2.8598586605579537
+ },
+ "replication_168": {
+  "replicated": 53,
+  "tested": 57,
+  "per_ba": {
+   "CISO": "15/15",
+   "ERCO": "13/15",
+   "MISO": "13/15",
+   "NYIS": "12/12"
+  },
+  "pjm_significant": 5609
+ },
+ "replication_504": {
+  "replicated": 36,
+  "tested": 57,
+  "per_ba": {
+   "CISO": "11/15",
+   "ERCO": "6/15",
+   "MISO": "8/15",
+   "NYIS": "11/12"
+  },
+  "pjm_significant": 3570
+ }
+}
