@@ -1,0 +1,12 @@
+{
+ "held": 20,
+ "tested": 20,
+ "lift_train": 4.472117667362179,
+ "lift_test": 5.179242185989909,
+ "J": 500,
+ "stratified": true,
+ "cutoff": "order-statistic",
+ "train_rows": 33597,
+ "test_rows": 12727,
+ "test_window": "2023-01-01 to 2024-07-02"
+}

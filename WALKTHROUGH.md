@@ -60,7 +60,7 @@ STEP 4 -- why the naive method gets this wrong
   its 5% cutoff: -12.9  vs block -51.7
   Destroying the autocorrelation makes extreme minima IMPOSSIBLE to reach,
   so the bar drops and far more rules clear it:
-    block permutation : 24,999 rules significant
+    block permutation : 24,956 rules significant  (J=1000, seed=1)
     row shuffle       : 43,603 rules significant
     the naive null manufactures 18,604 extra 'discoveries'
 
@@ -186,8 +186,8 @@ anti-conservative, and we measured by how much."
 | Worry | Test | Result |
 |---|---|---|
 | It finds things in noise | 120 true nulls | **0.058**, CI [0.024, 0.117] vs naive **1.000** |
-| It overfits the sample | thresholds fit on 2019-2022 only, tested forward | **20 of 20**, lift 4.47 -> **5.18** |
-| It is a PJM quirk | rerun on CISO, ERCO, MISO, NYIS | **57 of 58** |
+| It overfits the sample | fit on 2019-2022, tested 2023-01 to 2024-07 (18 months) | **20 of 20**, lift 4.47 -> **5.18** |
+| It is a PJM quirk | PJM's top 15 rules tested on CISO, ERCO, MISO, NYIS | **57 of 58** |
 | It is just storms | NOAA join, matched temp/rain/wind | **79% to 98%** retained |
 
 ---
@@ -217,4 +217,5 @@ and respectable answer. "I think it would probably be fine" is not.
    month under a stratified draw. Inherent to blocks longer than a day.
 5. **We found our own bug.** The ragged final block used to shift everything
    after it, so only 3 of 20 draws kept blocks inside their own month. Pinned
-   it; 20 of 20 now; the headline moved 1.3%.
+   it; 20 of 20 now; the headline moved 1.3% (25,330 -> 24,999, then 24,956
+   after the cutoff fix).

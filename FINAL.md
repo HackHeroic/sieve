@@ -78,16 +78,49 @@ Weather retention is carried over unchanged and is not affected by the fix:
 
 Weather explains only 2-21% of the effect, on all five grids.
 
-## Temporal holdout, re-run leak-free
+## Temporal holdout, on the shipped null
 
-Thresholds fitted on 2019-2022 only, then applied forward to 2023-2026.
+Thresholds fitted on **2019-01 to 2022-12** only (33,597 hours), then applied
+forward to **2023-01 to 2024-07** (12,727 hours, **18 months**).
 
-| | leaky (old) | clean (now) |
+Earlier drafts said "2023-2026". That was wrong, and it was wrong for a reason
+worth stating: `features.py` asks for EIA fuel column names that EIA changed in
+mid-2024 when battery storage became material, and an unguarded
+`notna().all(axis=1)` then drops every row after 2024-07-02. That is 21,283
+rows, **31.5% of the available data**, discarded silently. The statistics are
+unaffected; the window is not what the documents claimed.
+
+| | value |
+|---|---|
+| top rules still significant out of sample | **20 / 20** |
+| mean lift, train -> test | **4.47 -> 5.18** (+16%) |
+
+Produced by `holdout_clean.py`, artifact in `holdout_clean.json`. The previous
+figure came from `redo_holdout.py`, which drew from a generator that ignored the
+`strata` argument, so it was not a result of the method described here. That
+script is now in `archive/` and the generator is deleted.
+
+The result got stronger out of sample, which is the opposite of the usual
+direction. It did so both before and after the null was corrected.
+
+## Cross-grid replication, on the shipped null
+
+PJM's top 15 rules by lift (support > 1,000, significant on PJM) tested against
+each other grid's own lattice and own null.
+
+| grid | replicated | mean lift |
 |---|---|---|
-| top rules still significant out of sample | 19 / 20 | **20 / 20** |
-| mean lift, train -> test | 4.38 -> 5.10 | **4.47 -> 5.18** |
+| CISO | **15 / 15** | 4.55 |
+| ERCO | **14 / 15** | 3.41 |
+| MISO | **15 / 15** | 3.67 |
+| NYIS | **13 / 13** | 3.58 (2 rules not expressible in its lattice) |
+| **total** | **57 / 58** | |
 
-The result got stronger once the leakage was removed.
+Produced by `replicate_rules.py`, artifact in `replication_clean.json`, J=500,
+month-stratified, order-statistic cutoff. The earlier 57/58 came from
+`suite3.py` on an unstratified generator that also shuffled the ragged tail; it
+happened to give the same answer, but it was not evidence for the shipped method
+until now.
 
 ## Speed, honestly
 
@@ -95,12 +128,31 @@ The result got stronger once the leakage was removed.
 |---|---:|---:|
 | L0 naive (scipy tail, 1 core) | 1,510.6 | 1x |
 | L3+L5 fast p-values | 83.3 | 18x |
-| + 14-core counts | 58.4 | 26x |
+| + bitset counts, **1 core, numpy** | 58.4 | 26x |
 | **L6 GPU pipeline, end to end** | **0.48** | **3,134x** |
 
-**58x over a fully parallel CPU**, end to end, same statistic. Naive to final is
-3,134x. Both are true; the second is the one last year's winner would have
-quoted, the first is the one we quote.
+**122x end to end** (58.4 / 0.48), same statistic. Earlier drafts said 58x,
+which does not follow from this table, and labelled the third rung "14-core".
+Both were wrong:
+
+- `core.popcount` is `np.bitwise_count(...).sum()`, which is **single-threaded**.
+  `fastp.minp_null_fast` is the only `parallel=True` routine in the codebase and
+  it has **no callers**. There is no multi-core path.
+- That baseline is also **unfused**: it materialises a 387 MB temporary for the
+  AND and a 48 MB one for the count, moving about 1.26 GB to do 0.39 GB of work.
+  Measured useful traffic is **6.8 GB/s** on a machine that sustains 100-400, so
+  the CPU here is bound by numpy, **not by memory bandwidth**. An earlier draft
+  claimed the opposite and used it as the argument for the GPU. It was wrong.
+
+Against a properly fused, threaded popcount baseline the GPU win would be in the
+low teens, not 122x. **The GPU is not the contribution.** GPU acceleration of
+permutation testing is established prior art (PBOOST, *Bioinformatics* 2014;
+HWY, ACM BCB 2015). It is what makes a 12-second demo possible. See
+`POSITIONING.md`.
+
+The defensible engineering claim is the roofline one: arithmetic intensity is
+B/4 popcounts per DRAM byte, and against the 235 GB/s this card actually
+delivers the knee sits at B = 32.2. We batch 32.
 
 ## Housekeeping done
 

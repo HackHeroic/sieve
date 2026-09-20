@@ -1,0 +1,36 @@
+{
+ "per_ba": {
+  "CISO": {
+   "tested": 15,
+   "replicated": 15,
+   "not_expressible": 0,
+   "mean_lift": 4.54669471549057
+  },
+  "ERCO": {
+   "tested": 15,
+   "replicated": 14,
+   "not_expressible": 0,
+   "mean_lift": 3.412158626086777
+  },
+  "MISO": {
+   "tested": 15,
+   "replicated": 15,
+   "not_expressible": 0,
+   "mean_lift": 3.674140119880584
+  },
+  "NYIS": {
+   "tested": 13,
+   "replicated": 13,
+   "not_expressible": 2,
+   "mean_lift": 3.5772038331403277
+  }
+ },
+ "replicated": 57,
+ "tested": 58,
+ "J": 500,
+ "stratified": true,
+ "cutoff": "order-statistic",
+ "source_grid": "PJM",
+ "support_floor": 1000,
+ "top_n": 15
+}

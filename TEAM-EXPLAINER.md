@@ -98,7 +98,8 @@ prediction, not hindsight.
 
 ### We then tried hard to break it
 
-**Hid the future.** Found the rule using only 2019-2022, tested on 2023-2026
+**Hid the future.** Found the rule using only 2019-2022, tested on 2023-01 to
+2024-07 (18 months)
 which the machine had never seen. **20 of 20 rules still worked**, and the effect
 got *stronger*, not weaker.
 

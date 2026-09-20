@@ -53,20 +53,16 @@ def gather_pack(y_gpu, idx_gpu, n, W, B):
     return out
 
 
-def block_idx_gpu(n, block, B, rng):
-    """
-    B block permutations as a (B, n) int32 device array, vectorised.
-
-    The obvious Python loop over blocks costs 11.7 ms per batch, which was
-    three times the counts kernel.  Reshaping into (nblocks, block) and
-    permuting rows does the same work in numpy with no Python loop.
-    """
-    nfull = (n // block) * block
-    base = np.arange(nfull, dtype=np.int32).reshape(-1, block)
-    nb = base.shape[0]
-    orders = np.argsort(rng.random((B, nb)), axis=1)          # B random block orders
-    idx = base[orders].reshape(B, nfull)                       # vectorised gather
-    if nfull < n:                                              # ragged tail stays put
-        tail = np.tile(np.arange(nfull, n, dtype=np.int32), (B, 1))
-        idx = np.concatenate([idx, tail], axis=1)
-    return cp.asarray(np.ascontiguousarray(idx))
+# NOTE: block_idx_gpu was REMOVED.
+#
+# It generated its own block orders, vectorised, but it ignored the `strata`
+# argument entirely and pinned the ragged tail.  core.block_permutation
+# stratifies by calendar month and (since the fix) also pins the tail.  Two
+# generators with different semantics behind one name meant that scripts
+# importing this one were silently running a DIFFERENT null from the one every
+# document describes -- which is exactly what happened to the holdout and the
+# cross-BA replication.
+#
+# Every permutation now comes from core.block_permutation via backends.py, so
+# CPU and GPU consume identical indices.  See backends.py for the measurement
+# that made sharing affordable (4.3 ms/batch against a 5.6 ms kernel).

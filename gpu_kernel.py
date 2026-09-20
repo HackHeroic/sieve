@@ -44,29 +44,12 @@ def counts_batch(rules_gpu, ys_gpu, B, R, W, threads=256):
     return out
 
 
-def pack_gpu(bools_np):
-    """(B, n) bool on host -> (B, W) uint64 on device.
-
-    Packed on CPU deliberately: the label batch is ~185 KB, so the transfer is
-    free, and cupy.packbits has no axis argument.
-    """
-    b = np.ascontiguousarray(bools_np, dtype=bool)
-    n = b.shape[-1]
-    W = (n + 63) // 64
-    pad = W * 64 - n
-    if pad:
-        b = np.concatenate([b, np.zeros(b.shape[:-1] + (pad,), dtype=bool)], -1)
-    packed = np.packbits(b, axis=-1, bitorder='little').view(np.uint64)
-    return cp.asarray(np.ascontiguousarray(packed.reshape(*b.shape[:-1], W)))
-
-
-def block_perm_batch(n, block, B, rng):
-    """B circular block permutations as an index matrix (B, n)."""
-    starts = np.arange(0, n, block)
-    nb = len(starts)
-    idx = np.empty((B, n), dtype=np.int64)
-    for j in range(B):
-        order = rng.permutation(nb)
-        idx[j] = np.concatenate([np.arange(starts[k], min(starts[k] + block, n))
-                                 for k in order])
-    return idx
+# NOTE: pack_gpu and block_perm_batch were REMOVED.
+#
+# block_perm_batch had the same defect as gpu_full.block_idx_gpu -- no strata --
+# and additionally shuffled the ragged tail, so roughly 253 of 275 blocks landed
+# in the wrong calendar month.  pack_gpu was superseded by gpu_full.gather_pack,
+# which packs on device instead of round-tripping through the host.
+#
+# counts_batch below is the only thing this module still exports, and it is
+# driven by backends.GPUBackend.

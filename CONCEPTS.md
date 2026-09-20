@@ -210,8 +210,8 @@ different questions, measured rather than asserted.
 | Test | What it rules out | Result |
 |---|---|---|
 | Calibration on 120 true nulls | the method finds things in noise | **0.058** (95% CI 0.024-0.117) vs naive **1.000** |
-| Temporal holdout, thresholds fit on 2019-2022 only | overfitting to the sample | **20 of 20**, lift 4.47 -> **5.18** |
-| Replication on CISO, ERCO, MISO, NYIS | a PJM-specific quirk | **57 of 58** |
+| Temporal holdout, thresholds fit on 2019-2022 only, tested 2023-01 to 2024-07 (18 months) | overfitting to the sample | **20 of 20**, lift 4.47 -> **5.18** |
+| Replication on CISO, ERCO, MISO, NYIS | a PJM-specific quirk | **57 of 58** (15/15, 14/15, 15/15, 13/13) |
 | NOAA weather join, matched temp/rain/wind | "storms are just hard" | **79% to 98%** retained |
 
 The holdout number is the one to lead with, because the effect got *stronger*
@@ -227,11 +227,19 @@ an AND plus a population count. The GPU holds the 387 MB rule matrix resident
 and tests a BATCH of 32 permuted label vectors against each loaded word.
 
 **The win is reuse, not parallelism.** The naive port reads 387 MB once per
-permutation; batching reads it once per 32. Fourteen CPU cores only bought 2.2x
-over one core, which tells you the CPU was memory-bandwidth bound, and that is
-a better argument for the GPU than any raw speedup number.
+permutation; batching reads it once per 32.
 
-**Quote 58x, end to end, against a fully parallel 14-core CPU.** Not 3,134x
+Do NOT say the CPU was memory-bandwidth bound. It was not. Our CPU baseline is
+single-threaded, unfused numpy running at 6.8 GB/s of useful traffic on a
+machine that sustains 100-400. It is bound by numpy, not by the memory system.
+Against a fused, threaded popcount the GPU win would be low double digits.
+
+The defensible engineering claim is the roofline one: arithmetic intensity is
+B/4 popcounts per DRAM byte, so against the 235 GB/s this card actually delivers
+the knee sits at B = 32.2, and we batch 32. That explains why the batch size is
+right instead of asserting it.
+
+**Quote 122x end to end** (58.4 / 0.48 ms per permutation). Not 3,134x
 against naive Python, and not the pod's own throttled CPU, which would have
 produced 16,000x.
 

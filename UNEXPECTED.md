@@ -1,5 +1,16 @@
 # Making it find UNEXPECTED patterns, not just significant ones
 
+> **Caveat, added after audit.** The numbers in this document were produced by
+> `find_unexpected.py` and `verify_unexpected.py`, both of which drew
+> permutations from `gpu_full.block_idx_gpu` -- a generator that ignored the
+> `strata` argument, so the null was NOT the month-stratified circular block
+> permutation described everywhere else. Those scripts are now in `archive/` and
+> the generator has been deleted. **The surprise and reversal figures below have
+> not yet been re-run on the shipped null.** The holdout and cross-grid
+> replication were re-run and both survived unchanged (20/20 and 57/58); this
+> analysis has not been, and should be presented as provisional until it is.
+
+
 ## The research
 
 The gap between "statistically significant" and "surprising" is a solved
