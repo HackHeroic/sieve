@@ -139,8 +139,15 @@ defect made the case four times stronger.</p></section><section><div class=kick>
 <tr><td>shared memory</td><td>obvious win</td><td class=bad>6% SLOWER &mdash; already in L2</td></tr>
 <tr><td>parallel scanner</td><td>free speedup</td><td class=bad>3.6&times; SLOWER &mdash; oversubscribes 6 vCPU</td></tr>
 <tr><td>compile-time batch size</td><td>minor</td><td class=good><b>1.53&times;</b> &mdash; the biggest single win</td></tr></table>
-<p class=hl>Kernel <b>19% &rarr; 48% of roofline</b>, end to end <b>112&times;</b>.
-Three of six predictions were wrong.</p>
+<p class=hl>Kernel <b>19% &rarr; 48% of roofline</b>. Three of six predictions were wrong.</p>
+<table class=tbl2 style="margin-top:4px"><tr><th>stage</th><th>ms/perm</th><th>vs naive</th></tr>
+<tr><td>naive: scipy tail, 1 core</td><td class=num>1,510.6</td><td class=num>1&times;</td></tr>
+<tr><td>+ fast log-factorial p-values</td><td class=num>83.3</td><td class=num>18&times;</td></tr>
+<tr><td>+ bitset counts (1 core, numpy)</td><td class=num>58.4</td><td class=num>26&times;</td></tr>
+<tr><td><b>GPU pipeline, end to end</b></td><td class=num><b>0.521</b></td><td class=num><b>2,899&times;</b></td></tr></table>
+<p class=hl><b>We quote 112&times;, not 2,899&times;.</b> The big number is against a
+scipy loop we wrote ourselves. Against our own fastest CPU implementation it is
+112&times;, and against a properly tuned one it would be smaller still.</p>
 <p class=small>The GPU is <b>not</b> the contribution &mdash; PBOOST (2014) and HWY (2015)
 did GPU permutation testing a decade ago. Our CPU baseline is unfused numpy at 6.8 GB/s,
 so against a tuned one the gap is far smaller. We say so.</p></section><section><div class=kick>9 / 10</div><h2>What is wrong with it</h2>
