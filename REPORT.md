@@ -140,6 +140,60 @@ lattice and own null: CISO 15/15, ERCO 14/15, MISO 15/15, NYIS 13/13.
 
 ---
 
+## Market data: 36 years of VIX
+
+The same tool, through the generic CSV adapter, on FRED's VIX series 1990-2026.
+No code shared with the electricity pipeline. Outcome: when does the naive
+"tomorrow's volatility equals today's" forecast fail?
+
+| block length | blocks | SIEVE | conventional |
+|---|---:|---:|---:|
+| 21 days | 455 | 0.863 | 0.988 |
+| 63 days | 151 | 0.500 | 0.988 |
+| 126 days | 75 | 0.362 | 0.988 |
+| 252 days | 37 | 0.212 | 0.988 |
+| **504 days** | 18 | **0.062** | 0.988 |
+
+**The conventional correction reports a discovery on 98.8% of market datasets
+containing no signal.** 9,572 trading days, 90,307 candidate rules.
+
+### It rediscovered volatility clustering, and we verified that rather than asserting it
+
+Top finding, lift **5.57**:
+`VIX_lag1>q90 AND perr_lag1>q90 AND perr_lag2>q90` -- yesterday's absolute VIX
+change was extreme, and the day before was too, so today's will be.
+
+That is Mandelbrot's 1963 definition verbatim: *large changes are followed by
+large changes, of either sign*. Tested:
+
+| test | result |
+|---|---|
+| ACF of **signed** dVIX, lags 1/2/5 | -0.125, -0.035, 0.008 |
+| ACF of **absolute** |dVIX| | **0.366, 0.364, 0.283** |
+| Ljung-Box Q(10) on |dVIX| | **7,446.7**, p = 0 |
+| **Engle ARCH LM test** | **1,817.8** on 10 df, p = 0 |
+
+Engle's 1982 ARCH test is the one the 2003 Nobel was awarded for. No finance was
+supplied to the miner.
+
+And it is not merely restating persistence: conditioning on the previous two days
+alone gives **4.09x**; SIEVE's conjunction gives **5.57x**.
+
+### The block length cannot be inferred from the ACF
+
+VIX autocorrelation dies out by **126 days**. 126-day blocks still give a **36%
+error rate**. It needs **504 days**, four times longer, because volatility
+clustering carries dependence a simple ACF does not see.
+
+**This is the practical result.** Every data-snooping correction in quantitative
+finance -- White's Reality Check, Hansen's SPA, Romano-Wolf StepM, PBO -- runs on
+a block or stationary bootstrap and needs a block length. Romano-Wolf has a
+section titled "Choice of Block Sizes". Nobody publishes how they chose theirs.
+If the block is shorter than the dependence horizon the correction is not doing
+what the paper says, and nothing errors, so you never find out.
+
+*Artifact: `calib_var.json`.*
+
 # 5. Does it generalise beyond one dataset?
 
 The five grids above are five slices of **one** dataset -- same agency, same
