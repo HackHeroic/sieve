@@ -1,0 +1,8 @@
+{
+ "strict_predicates": 41,
+ "full_predicates": 85,
+ "strict_rules": 4541,
+ "strict_significant": 2895,
+ "strict_top_lift": 3.5230725354121115,
+ "strict_top_rule": "fc_vs_yesterday>q50 AND fc_day_range>q90 AND err_lag48>q75"
+}

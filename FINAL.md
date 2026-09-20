@@ -207,6 +207,45 @@ slower than the CPU scan (weak per-thread bound plus warp divergence) and
 carried the same support-boundary bug. `gpu_full.py` now exports only
 `gather_pack` and `block_idx_gpu`.
 
+## Is `err_lag24` really available when the forecast is filed?
+
+**The attack.** EIA-930's day-ahead forecast is filed as **one D-1 vintage
+covering all 24 hours of day D**. Our code applies a uniform `.shift(24)`. If
+the vintage is filed at hour T on D-1, then for hour t on D a realised quantity
+at lag 24 -- hour t on D-1 -- had only occurred by filing time if t < T. For a
+mid-morning filing that is false for more than half of each day.
+
+So `err_lag24` is not look-ahead with respect to hour t, but it is partly
+look-ahead with respect to the **filing instant**. The distinction is real and
+we did not catch it ourselves.
+
+**The test.** Rebuild using only predicates that are unambiguously available:
+the forecast and shapes derived from it (a forecast is known when filed,
+whatever its vintage), calendar terms, and realised quantities at lag >= 48h.
+That drops 44 of 85 predicates and 94% of the lattice.
+
+| | predicates | rules | significant | top lift |
+|---|---:|---:|---:|---:|
+| full, as shipped | 85 | 66,844 | 25,017 | **4.61** |
+| strict, lag >= 48h only | 41 | 4,541 | 2,895 | **3.52** |
+
+**The effect survives.** Lift falls from 4.61 to 3.52, which is the honest cost
+of the restriction, and it remains far above the 1.0 base rate.
+
+**And one strict rule settles it completely:**
+
+```
+fc_level>q75 AND fc_ramp_1h>q90 AND fc_day_range>q75      lift 3.46, support 804
+```
+
+Every term is a property of **the forecast itself**. No realised data at any
+lag. Whatever vintage that forecast belongs to, all three conditions are
+knowable the instant it is filed. A forecast that is high, ramping steeply, and
+predicting a wide daily swing is **3.5x more likely to fail**, and that is
+computable before the forecast is submitted.
+
+Artifact: `vintage_check.json`, produced by `vintage_check.py`.
+
 ## A structural limitation found by audit
 
 `features.py` builds `hour_sin` and `hour_cos`, then binarises every feature at
