@@ -775,3 +775,116 @@ code, and the page runs the real engine live rather than replaying a recording.
 (batch-size invariance, stratification, CPU/GPU equality), `test_gpu_equal.py`
 (end-to-end device equality), `kernel_ab.py` (all four kernels bit-identical),
 `verify_all.py` (every change made during the final audit).
+
+
+---
+
+# PART 7 &mdash; EVERY ENGINEERING CHOICE, AND WHY
+
+For each: what we chose, what we rejected, and what it cost or bought. Several of
+these were decided by measurement after we guessed wrong.
+
+## Statistical choices
+
+**Bitsets, not arrays.** A rule is 46,324 yes/no answers. Stored as bits that is
+724 64-bit words, so intersecting two rules is 724 AND instructions and counting
+coverage is a hardware `popcount`. *Rejected:* boolean arrays (8x the memory,
+no popcount), sparse sets (the rules are dense, so sparsity costs more than it
+saves). *Bought:* the whole thing becomes feasible at all.
+
+**Fisher's exact test as a ranking statistic only.** *Rejected:* using its
+p-value for inference. The hypergeometric assumes exchangeable rows, and ours are
+autocorrelated at 0.72, so the number is not a probability. *Cost:* we throw away
+a p = 1.4e-166 that looks decisive. *Bought:* every claim we make is actually
+valid.
+
+**min-P, not max-T.** Westfall-Young comes in both forms. *Why min-P:* rules of
+different support produce Fisher statistics on non-comparable scales, so a
+maximum over raw statistics is dominated by whichever support happens to generate
+large numbers. p-values are on a common [0,1] scale by construction.
+
+**Circular block permutation, not the stationary bootstrap.** *Why:* the
+stationary bootstrap draws geometric block lengths, which is better theory but
+makes the null a mixture over lengths &mdash; and our central finding is that the
+*length* is what matters. A fixed length makes the parameter visible and
+measurable. *Cost:* asymptotic rather than exact validity, which is why we
+measure the false positive rate instead of claiming a theorem.
+
+**Kept Tarone despite it contributing 0.36%.** *Why:* it is exact, it costs
+almost nothing, and the honest thing is to report a measured null result rather
+than quietly delete machinery that did not help here. It would matter enormously
+on sparse data such as genetics.
+
+**Order statistic, not `np.quantile`, for the cutoff.** `np.quantile`
+interpolates and divides by J rather than J+1. Measured over 4,000 trials the
+achieved rate was **0.0565 against a nominal 0.05** at J=200. The order statistic
+gives 0.0512. *Cost:* one line. *Bought:* the procedure does what it says.
+
+**Greedy cover ranked by lift, not by coverage.** *Why:* ranking by coverage
+alone picks trivially broad rules &mdash; the widest significant rule on PJM
+covers 75% of all hours at a lift of 1.22, which is statistically real and
+substantively nothing. *Cost:* a support floor, below which lift is unstable.
+
+**Date-gated the timestamp correction.** *Why:* the offset begins 2019-01-30, and
+before that the series is correctly aligned. Shifting those 499 rows anyway takes
+their positive rate from 4.0% to 24.5% against a 10.1% base, manufacturing false
+positives into the January cells.
+
+**Calibrated the block length per series.** *Why:* we used one length everywhere
+and CISO came back at a **0.850** false positive rate. The dependence horizon is
+a property of the series, not a convention. *Cost:* a calibration run per
+dataset. *Bought:* the central claim actually holds.
+
+## Engineering choices
+
+**CPU and GPU share one permutation generator.** *Rejected:* the GPU module's own
+vectorised generator, which is faster but **ignores the stratification** and pins
+the ragged tail. The two devices were sampling from different nulls. *Cost:* 4.3
+ms per batch of 32, against a 5.6 ms kernel. *Bought:* `--device` is a speed knob,
+not a different experiment, asserted bit-identical in `test_backends.py`.
+
+**One warp per rule, not one thread.** One thread per rule means adjacent lanes
+read words 5,792 bytes apart &mdash; a 32-way scatter on every load. A warp per
+rule reads 32 consecutive words as one coalesced transaction. *Bought:* 1.65x on
+the kernel. *Learned:* only **1.05x end to end**, which is what sent us to the
+profiler instead of to another kernel idea.
+
+**Compile-time batch size.** `B` was a runtime kernel argument, so
+`for (b = 0; b < B; ++b)` could not unroll and `acc[b]` could not be proven
+constant-indexed. Baking it in as a literal and caching one NVRTC module per
+size. *Bought:* **1.53x &mdash; the single biggest kernel win**, more than the
+coalescing fix. *Cost:* one compiled module per distinct batch size.
+
+**Batch of exactly 32.** Not arbitrary. Arithmetic intensity is B/4 popcounts per
+DRAM byte, so against the 235 GB/s this card actually delivers the roofline knee
+sits at **B = 32.2**. Below it you are bandwidth-starved; above it you gain
+nothing. Also the kernel's `int acc[32]` register budget.
+
+**Cached the permutation structure.** The profiler said the kernel was 15% of
+wall time and **generating permutations was 53%**. The code rebuilt 275 array
+slices and ran a Python loop on every single draw, though none of that structure
+depends on the draw. *Bought:* 4.67x, and because the rng call order is unchanged
+the draws are bit-identical so nothing downstream moved.
+
+## Two things we tried and rejected, with numbers
+
+**Shared-memory staging of the label matrix.** The reasoning was sound: `ys` is
+re-read by every one of 66,817 warps, so staging it per block should cut traffic
+8x. **It was 6% slower** (5.616 vs 5.253 ms). Why: at 185 KB it already lives in
+the L4's 48 MB L2, so no real traffic was saved, and the per-tile
+`__syncthreads()` cost more than nothing. Kept in the tree as
+`gpu_kernel_smem.py` so the result is reproducible.
+
+**The parallel batch scanner.** `fastp.minp_null_fast` is a `parallel=True`
+routine for scanning a whole batch at once, and it had never been called. Wiring
+it in made that stage **3.6x slower** (1.684 vs 0.469 ms/perm) because it
+oversubscribes the 6 vCPU the container actually allocates while `nproc` reports
+48. Left unused, with the reason recorded.
+
+## What these two failures are worth
+
+Three of six engineering predictions were wrong. **That is the argument for
+profiling**, and it is exactly what a speedup number cannot tell you. Last year's
+entry reports a warp-primitive variant that came out 36% slower than the version
+before it, with no explanation offered &mdash; which is what happens when you
+optimise without a roofline.
