@@ -28,7 +28,22 @@ from core import pack
 
 DATA = os.path.join(os.path.dirname(__file__), "data")
 
-FUELS = ["Coal", "Natural Gas", "Nuclear", "Wind", "Solar", "Hydro"]
+# EIA renamed these from the 2024 Jul-Dec file onward:
+#   "Solar" -> "Solar with/without Integrated Battery Storage"
+#   "Wind"  -> "Wind  with/without Integrated Battery Storage"
+#   "Hydropower and Pumped Storage" -> "Hydropower Excluding Pumped Storage" + "Pumped Storage"
+# Asking for the old names and then dropping rows with any NaN silently deleted
+# every hour after 2024-07-02 -- 31.5% of the data, with no error and no log line.
+# Resolve by PREFIX and sum the split variants instead.
+FUELS = ["Coal", "Natural Gas", "Nuclear", "Wind", "Solar", "Hydropower"]
+FUEL_PREFIX = "Net Generation (MW) from "
+
+
+def _fuel_cols(columns, fuel):
+    """Every column belonging to this fuel, across both schema eras."""
+    want = FUEL_PREFIX + fuel
+    return [c for c in columns
+            if c.startswith(want) and "Imputed" not in c and "Adjusted" not in c]
 
 
 def load_ba(ba: str, years=range(2019, 2027)) -> pd.DataFrame:
@@ -40,12 +55,12 @@ def load_ba(ba: str, years=range(2019, 2027)) -> pd.DataFrame:
             continue
         df = pd.read_csv(
             f, low_memory=False, thousands=",",
-            usecols=lambda c: c in {
-                "Balancing Authority", "UTC Time at End of Hour",
-                "Demand Forecast (MW)", "Demand (MW)", "Net Generation (MW)",
-                "Total Interchange (MW)",
-                *[f"Net Generation (MW) from {x}" for x in FUELS],
-            },
+            usecols=lambda c: (
+                c in {"Balancing Authority", "UTC Time at End of Hour",
+                      "Demand Forecast (MW)", "Demand (MW)",
+                      "Net Generation (MW)", "Total Interchange (MW)"}
+                or (c.startswith(FUEL_PREFIX) and "Imputed" not in c
+                    and "Adjusted" not in c)),
         )
         df = df[df["Balancing Authority"] == ba]
         if len(df):
@@ -141,15 +156,22 @@ def build(ba: str, years=range(2019, 2027), q: float = 0.90, fit_until_year=None
     f["interchange_lag24"] = d["Total Interchange (MW)"].shift(24)
     tot = ng.replace(0, np.nan)
     for fuel in FUELS:
-        col = f"Net Generation (MW) from {fuel}"
-        if col in d.columns:
-            f[f"share_{fuel.split()[0].lower()}_lag24"] = (d[col] / tot).shift(24)
+        cols = _fuel_cols(d.columns, fuel)
+        if not cols:
+            continue
+        gen = d[cols].sum(axis=1, min_count=1)      # sum the split variants
+        f[f"share_{fuel.split()[0].lower()}_lag24"] = (gen / tot).shift(24)
 
     # (c) calendar
     hour = d.index.hour
     month = d.index.month
-    f["hour_sin"] = np.sin(2 * np.pi * hour / 24)
-    f["hour_cos"] = np.cos(2 * np.pi * hour / 24)
+    # hour_sin / hour_cos were CONSTANT inside every (hour x month) binarisation
+    # cell, so all eight of their quantile predicates were identically False and
+    # no time-of-day rule was expressible at all.  Binary indicators pass through
+    # the <=2-unique-values branch below untouched, so they survive.
+    f["is_morning_ramp"] = ((hour >= 10) & (hour <= 14)).astype(float)   # UTC
+    f["is_evening_peak"] = ((hour >= 21) | (hour <= 1)).astype(float)
+    f["is_overnight"] = ((hour >= 5) & (hour <= 9)).astype(float)
     f["is_weekend"] = (d.index.dayofweek >= 5).astype(float)
 
     ok = f.notna().all(axis=1) & err.notna()

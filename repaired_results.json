@@ -1,0 +1,92 @@
+{
+ "meta": {
+  "hours": 64690,
+  "positive": 6532,
+  "rules": 87943,
+  "predicates": 84,
+  "start": "2019-01-09",
+  "end": "2026-09-17"
+ },
+ "result": {
+  "block": 504,
+  "sig_block": 10252,
+  "sig_row": 39166,
+  "inflation": 3.820327740928599,
+  "boot": 10186,
+  "boot_sd": 214,
+  "findings": [
+   {
+    "idx": 14319,
+    "rule": "fc_level>q90 AND dem_chg_24_48>q50 AND err_lag24>q90",
+    "support": 964,
+    "lift": 3.205298905102998,
+    "logp": -185.19820971291065,
+    "new_hours": 312
+   },
+   {
+    "idx": 14019,
+    "rule": "fc_level>q90 AND dem_lag24>q90 AND err_lag24>q90",
+    "support": 873,
+    "lift": 3.176396894239585,
+    "logp": -163.86093692709755,
+    "new_hours": 44
+   },
+   {
+    "idx": 58282,
+    "rule": "fc_day_range>q90 AND err_lag24>q90 AND err_roll7d>q25",
+    "support": 906,
+    "lift": 3.115355681454115,
+    "logp": -161.93298119496052,
+    "new_hours": 130
+   },
+   {
+    "idx": 48828,
+    "rule": "fc_vs_yesterday>q75 AND fc_day_range>q75 AND err_lag24>q90",
+    "support": 861,
+    "lift": 3.071136255496927,
+    "logp": -148.36590278072813,
+    "new_hours": 89
+   },
+   {
+    "idx": 63707,
+    "rule": "dem_lag24>q90 AND dem_chg_24_48>q75 AND err_lag24>q90",
+    "support": 872,
+    "lift": 3.0551094260015623,
+    "logp": -148.26331895139026,
+    "new_hours": 54
+   },
+   {
+    "idx": 56641,
+    "rule": "fc_day_range>q75 AND err_lag24>q90 AND share_solar_lag24>q50",
+    "support": 1085,
+    "lift": 3.0486509519952816,
+    "logp": -183.68127969583156,
+    "new_hours": 47
+   },
+   {
+    "idx": 54516,
+    "rule": "fc_day_range>q50 AND dem_lag168>q75 AND err_lag24>q90",
+    "support": 1245,
+    "lift": 3.0466347939215526,
+    "logp": -210.75134829401668,
+    "new_hours": 114
+   },
+   {
+    "idx": 10478,
+    "rule": "fc_level>q75 AND fc_vs_yesterday>q75 AND err_lag24>q90",
+    "support": 1064,
+    "lift": 3.0250510500071366,
+    "logp": -176.51697920511958,
+    "new_hours": 67
+   }
+  ],
+  "covered": 857
+ },
+ "calibration": {
+  "504": {
+   "block": 0.04,
+   "row": 1.0,
+   "blocks": 128
+  }
+ }
+}
