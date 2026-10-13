@@ -1,0 +1,8 @@
+numpy
+pandas
+scipy
+numba
+pyarrow
+flask
+matplotlib
+# GPU path (optional): cupy-cuda12x

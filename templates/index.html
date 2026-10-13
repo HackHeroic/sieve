@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SIEVE</title>
+<style>
+:root{
+  color-scheme: light;
+  --surface:#fcfcfb; --plane:#f4f4f1;
+  --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,.10);
+  --block:#2a78d6; --blockSoft:#cde2fb;
+  --naive:#eb6834; --naiveSoft:#fbdfd3;
+  --good:#0ca30c;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  color-scheme: dark;
+  --surface:#1a1a19; --plane:#0d0d0d;
+  --ink:#fff; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.12);
+  --block:#3987e5; --blockSoft:#184f95;
+  --naive:#d95926; --naiveSoft:#6b2d13;
+}}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --surface:#1a1a19; --plane:#0d0d0d;
+  --ink:#fff; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.12);
+  --block:#3987e5; --blockSoft:#184f95;
+  --naive:#d95926; --naiveSoft:#6b2d13;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:30px 56px}
+header{display:flex;justify-content:space-between;align-items:flex-start;
+  gap:18px;flex-wrap:wrap;margin-bottom:22px}
+h1{font-size:30px;margin:0 0 3px;letter-spacing:-.022em;font-weight:680}
+.tag{color:var(--ink2);font-size:14px;max-width:52ch}
+h2{font-size:11px;text-transform:uppercase;letter-spacing:.09em;
+  color:var(--muted);margin:0 0 14px;font-weight:700}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:12px;
+  padding:20px;margin-bottom:14px}
+.seg{display:inline-flex;background:var(--plane);border:1px solid var(--ring);
+  border-radius:9px;padding:3px;gap:3px}
+.seg button{background:none;border:0;border-radius:7px;padding:7px 13px;cursor:pointer;
+  font:600 13px system-ui,sans-serif;color:var(--ink2);text-align:left;line-height:1.25}
+.seg button small{display:block;font-weight:400;font-size:10.5px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);
+  box-shadow:0 1px 3px rgba(0,0,0,.09)}
+.bar{display:flex;gap:11px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+#go{font:650 15px system-ui,sans-serif;background:var(--block);color:#fff;border:0;
+  border-radius:9px;padding:12px 26px;cursor:pointer;letter-spacing:.005em}
+#go:disabled{background:var(--muted);cursor:default}
+label{color:var(--ink2);font-size:13px;display:inline-flex;align-items:center;gap:6px}
+input{width:70px;font:13px system-ui,sans-serif;padding:8px 9px;border:1px solid var(--axis);
+  border-radius:7px;background:var(--surface);color:var(--ink);font-variant-numeric:tabular-nums}
+#status{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;margin-left:auto}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 22px}
+.stat .k{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.075em;font-weight:600}
+.stat .v{font-size:25px;font-variant-numeric:tabular-nums;letter-spacing:-.018em;line-height:1.25}
+.stat .v em{font-style:normal;font-size:13px;color:var(--muted);letter-spacing:0}
+.legend{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;font-size:12.5px;color:var(--ink2)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:7px;vertical-align:-1px}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.cmp>div{border:1px solid var(--ring);border-radius:10px;padding:15px 16px;background:var(--plane)}
+.cmp .lb{font-size:12.5px;font-weight:650;margin-bottom:7px}
+.cmp .n{font-size:33px;font-variant-numeric:tabular-nums;letter-spacing:-.022em;line-height:1.1}
+.cmp .pm{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--muted);font-weight:700;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.075em;padding:0 12px 9px 0;white-space:nowrap}
+td{padding:9px 12px 9px 0;border-top:1px solid var(--grid);font-variant-numeric:tabular-nums;vertical-align:top}
+tbody tr:hover{background:var(--plane)}
+td.rule{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
+  white-space:normal;font-variant-numeric:normal;line-height:1.5}
+.tw{overflow-x:auto}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.figs figure{margin:0}
+.figs img{width:100%;border:1px solid var(--ring);border-radius:9px;display:block;background:#fff}
+.figs figcaption{color:var(--muted);font-size:12px;margin-top:7px}
+.note{color:var(--ink2);font-size:12.5px;margin:12px 0 0;max-width:80ch}
+.note b{color:var(--ink);font-weight:650}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>SIEVE</h1>
+    <div class="tag">Significant pattern mining where the multiple-testing correction
+      is done by permutation, because the rows are autocorrelated and the analytic
+      p&#8209;value is not valid.</div>
+  </div>
+  <div class="seg" id="dev">
+    {% for d in devices %}
+    <button data-dev="{{ d.id }}" aria-pressed="{{ 'true' if loop.first else 'false' }}">{{ d.label }}<small>{{ d.sub }}</small></button>
+    {% endfor %}
+  </div>
+</header>
+
+<div class="bar">
+  <button id="go">Run on PJM</button>
+  <label>permutations <input id="perms" type="number" value="200" min="10" max="2000" step="10"></label>
+  <label>seed <input id="seed" type="number" value="1"></label>
+  <span id="status"></span>
+</div>
+
+<div class="card">
+  <h2>The problem</h2>
+  <div class="stats">
+    <div class="stat"><div class="k">hours</div><div class="v">{{ "{:,}".format(n) }}</div></div>
+    <div class="stat"><div class="k">high-error hours</div><div class="v">{{ "{:,}".format(n1) }} <em>{{ base }}%</em></div></div>
+    <div class="stat"><div class="k">candidate rules</div><div class="v">{{ "{:,}".format(rules) }}</div></div>
+    <div class="stat"><div class="k">testable, after Tarone</div><div class="v">{{ "{:,}".format(testable) }} <em>&minus;{{ pruned }}%</em></div></div>
+  </div>
+  <p class="note">The outcome is the top decile of absolute day&#8209;ahead demand forecast error,
+    taken <b>within each hour&#8209;of&#8209;day by calendar&#8209;month cell</b>. Every predicate is knowable
+    24 hours ahead, at filing time, so this is prediction and not hindsight.</p>
+</div>
+
+<div class="card">
+  <h2>The permutation null, forming live</h2>
+  <div class="legend">
+    <span><i style="background:var(--block)"></i>circular block permutation &mdash; SIEVE</span>
+    <span><i style="background:var(--naive)"></i>naive row shuffle</span>
+    <span><i style="background:var(--ink)"></i>observed</span>
+  </div>
+  <div class="tw"><svg id="chart" viewBox="0 0 1000 330" width="100%" style="min-width:600px"></svg></div>
+  <p class="note">Every permutation contributes one point: the smallest log&nbsp;p found across all
+    {{ "{:,}".format(rules) }} rules. The <b>5% quantile of that distribution is the significance
+    cutoff</b>. A row shuffle destroys the autocorrelation, so its minima never reach far, so its
+    cutoff sits much closer to zero and lets thousands more rules through.</p>
+</div>
+
+<div class="card">
+  <h2>Rules significant at 5% family-wise error</h2>
+  <div class="cmp">
+    <div style="border-color:var(--block)">
+      <div class="lb" style="color:var(--block)">Block permutation</div>
+      <div class="n" id="nb">&mdash;</div><div class="pm" id="sb">&nbsp;</div>
+    </div>
+    <div style="border-color:var(--naive)">
+      <div class="lb" style="color:var(--naive)">Naive row shuffle</div>
+      <div class="n" id="nr">&mdash;</div><div class="pm" id="sr">&nbsp;</div>
+    </div>
+    <div>
+      <div class="lb" style="color:var(--ink2)">Rules the naive null adds</div>
+      <div class="n" id="infl">&mdash;</div><div class="pm" id="inflp">&nbsp;</div>
+    </div>
+  </div>
+  {% if canon %}
+  <p class="note">Settled value from the canonical J&nbsp;=&nbsp;{{ "{:,}".format(canon.J) }} run:
+    <b>{{ "{:,}".format(canon.n) }}</b>. A short run scatters around that, because the cutoff is a
+    sample quantile of a random null. That is why the numbers above carry a spread rather than
+    five false significant figures.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Findings, after removing redundancy</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Lift</th><th>Support</th><th>New hours</th><th>log p</th><th>Rule</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="5" style="color:var(--muted);border:0;padding-top:4px">Run to populate.</td></tr></tbody>
+  </table></div>
+  <p class="note" id="cov"></p>
+</div>
+
+<div class="card">
+  <h2>Evidence</h2>
+  <div class="figs">
+    <figure><img src="/fig/fig1_funnel.png" alt="Funnel from candidate rules down to findings"><figcaption>Funnel: candidates to findings</figcaption></figure>
+    <figure><img src="/fig/fig6_twonulls.png" alt="Block permutation null against the naive row shuffle null"><figcaption>The two nulls, side by side</figcaption></figure>
+    <figure><img src="/fig/fig2_null.png" alt="False positive rate under a true null"><figcaption>Calibration: 0.050 against 1.000</figcaption></figure>
+    <figure><img src="/fig/fig3_replication.png" alt="Replication across five balancing authorities"><figcaption>Replication across five grids</figcaption></figure>
+    <figure><img src="/fig/fig5_weather.png" alt="Effect size retained after conditioning on weather"><figcaption>Weather explains only a slice</figcaption></figure>
+    <figure><img src="/fig/fig4_ladder.png" alt="Speed ladder from naive implementation to GPU"><figcaption>Speed: naive to GPU</figcaption></figure>
+  </div>
+</div>
+
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const V=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const OBSERVED={{ observed|round(1) }};
+let vals={block:[],row:[]}, cuts={block:null,row:null}, device='cpu';
+
+const W=1000,H=330,M={t:22,r:20,b:46,l:56}, XMIN=-95, XMAX=0, NB=57;
+function draw(){
+  const pw=W-M.l-M.r, ph=H-M.t-M.b;
+  const clamp=v=>Math.max(XMIN,Math.min(XMAX,v));
+  const x=v=>M.l+(clamp(v)-XMIN)/(XMAX-XMIN)*pw;
+  const bw=pw/NB, bins={}; let top=1;
+  for(const k of ['block','row']){
+    bins[k]=new Array(NB).fill(0);
+    for(const v of vals[k]){let i=Math.floor((clamp(v)-XMIN)/(XMAX-XMIN)*NB);
+      bins[k][Math.max(0,Math.min(NB-1,i))]++;}
+    top=Math.max(top,...bins[k]);
+  }
+  const y=c=>M.t+ph-(c/top)*ph;
+  let s='';
+  // y gridlines
+  const steps=4;
+  for(let i=0;i<=steps;i++){
+    const c=top*i/steps, yy=y(c);
+    s+=`<line x1="${M.l}" y1="${yy.toFixed(1)}" x2="${W-M.r}" y2="${yy.toFixed(1)}" stroke="${V('--grid')}" stroke-width="1"/>`;
+    s+=`<text x="${M.l-9}" y="${(yy+4).toFixed(1)}" fill="${V('--muted')}" font-size="11" text-anchor="end" font-family="system-ui">${Math.round(c)}</text>`;
+  }
+  s+=`<text transform="translate(15,${M.t+ph/2}) rotate(-90)" fill="${V('--muted')}" font-size="11" text-anchor="middle" font-family="system-ui">permutations</text>`;
+  // x ticks
+  for(let t=XMIN+5;t<=XMAX;t+=15){
+    s+=`<text x="${x(t)}" y="${H-22}" fill="${V('--muted')}" font-size="11" text-anchor="middle" font-family="system-ui">${t}</text>`;
+  }
+  s+=`<line x1="${M.l}" y1="${M.t+ph}" x2="${W-M.r}" y2="${M.t+ph}" stroke="${V('--axis')}" stroke-width="1"/>`;
+  s+=`<text x="${M.l+pw/2}" y="${H-5}" fill="${V('--muted')}" font-size="11.5" text-anchor="middle" font-family="system-ui">smallest log p found in one permutation &rarr; more extreme to the left</text>`;
+  // bars
+  for(const [k,col] of [['block',V('--block')],['row',V('--naive')]]){
+    bins[k].forEach((c,i)=>{ if(!c)return;
+      const yy=y(c), h=M.t+ph-yy;
+      s+=`<rect x="${(M.l+i*bw+1).toFixed(1)}" y="${yy.toFixed(1)}" width="${Math.max(bw-2,1).toFixed(1)}" height="${h.toFixed(1)}" fill="${col}" fill-opacity=".82" rx="2"/>`;});
+  }
+  // 5% cutoffs
+  for(const [k,col,lab] of [['block',V('--block'),'SIEVE cutoff'],['row',V('--naive'),'naive cutoff']]){
+    if(cuts[k]===null)continue;
+    const cx=x(cuts[k]), up=k==='block';
+    s+=`<line x1="${cx.toFixed(1)}" y1="${M.t}" x2="${cx.toFixed(1)}" y2="${M.t+ph}" stroke="${col}" stroke-width="2" stroke-dasharray="5 4"/>`;
+    s+=`<text x="${(cx+6).toFixed(1)}" y="${up?M.t+13:M.t+ph-8}" fill="${col}" font-size="11.5" font-weight="650" font-family="system-ui">${lab} ${cuts[k].toFixed(1)}</text>`;
+  }
+  // observed, off scale left
+  const ox=M.l+2.5;
+  s+=`<line x1="${ox}" y1="${M.t}" x2="${ox}" y2="${M.t+ph}" stroke="${V('--ink')}" stroke-width="2.5"/>`;
+  s+=`<text x="${ox+9}" y="${M.t+ph-26}" fill="${V('--ink')}" font-size="12.5" font-weight="700" font-family="system-ui">observed ${fmt(OBSERVED)}</text>`;
+  s+=`<text x="${ox+9}" y="${M.t+ph-10}" fill="${V('--muted')}" font-size="11" font-family="system-ui">far off scale &mdash; ${Math.round(OBSERVED/(cuts.block||-50.7))}&times; past the cutoff</text>`;
+  $('#chart').innerHTML=s;
+}
+draw();
+
+$('#dev').onclick=e=>{const b=e.target.closest('button'); if(!b)return;
+  [...$('#dev').children].forEach(c=>c.setAttribute('aria-pressed', c===b?'true':'false'));
+  device=b.dataset.dev;};
+
+$('#go').onclick=()=>{
+  vals={block:[],row:[]}; cuts={block:null,row:null}; draw();
+  ['nb','nr','infl'].forEach(i=>$('#'+i).innerHTML='&mdash;');
+  ['sb','sr','inflp'].forEach(i=>$('#'+i).innerHTML='&nbsp;');
+  $('#rows').innerHTML='<tr><td colspan="5" style="color:var(--muted);border:0;padding-top:4px">Running.</td></tr>';
+  $('#cov').textContent=''; $('#go').disabled=true;
+  const t0=performance.now(); let res={};
+  const es=new EventSource(`/run?perms=${$('#perms').value}&seed=${$('#seed').value}&device=${device}`);
+  es.onmessage=e=>{
+    const d=JSON.parse(e.data);
+    if(d.type==='perm'){
+      vals[d.kind].push(d.v);
+      if(vals[d.kind].length%3===0||d.j===d.J) draw();
+      $('#status').textContent=`${d.kind==='block'?'block permutation':'row shuffle'} ${d.j}/${d.J} · ${((performance.now()-t0)/1000).toFixed(1)}s`;
+    } else if(d.type==='null_done'){
+      res[d.kind]=d; cuts[d.kind]=d.cutoff;
+      const t=d.kind==='block'?['nb','sb']:['nr','sr'];
+      $('#'+t[0]).textContent=fmt(d.n);
+      $('#'+t[1]).textContent=`±${fmt(d.sd)} at this J · ${d.ms.toFixed(1)} ms/perm`;
+      if(res.block&&res.row){
+        $('#infl').textContent='+'+fmt(res.row.n-res.block.n);
+        $('#inflp').textContent=`${(res.row.n/Math.max(res.block.n,1)).toFixed(2)}× more rules called significant`;
+      }
+      draw();
+    } else if(d.type==='findings'){
+      $('#rows').innerHTML=d.rules.map(r=>`<tr><td><b>${r.lift.toFixed(2)}</b></td><td>${fmt(r.support)}</td><td>${fmt(r.new_hours)}</td><td>${r.logp.toFixed(1)}</td><td class="rule">${r.rule.replace(/ AND /g,' <span style="color:var(--muted)">AND</span> ')}</td></tr>`).join('');
+      $('#cov').textContent=`These ${d.rules.length} rules cover ${fmt(d.covered)} of ${fmt(d.total)} high-error hours, without overlapping each other.`;
+    } else if(d.type==='error'){
+      $('#status').textContent='error: '+d.msg; es.close(); $('#go').disabled=false;
+    } else if(d.type==='done'){
+      es.close(); $('#go').disabled=false;
+      $('#status').textContent=`done in ${((performance.now()-t0)/1000).toFixed(1)}s`;
+    }
+  };
+  es.onerror=()=>{es.close(); $('#go').disabled=false;};
+};
+</script>
+</body>
+</html>
