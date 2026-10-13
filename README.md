@@ -3,6 +3,7 @@
 **Pattern mining that stays honest on autocorrelated time series.**
 
 - False positive rate on signal-free data: **0.040** vs **1.000** for the standard row-shuffle correction.
+- Given 36 years of VIX and no finance knowledge, it **rediscovered volatility clustering** (Engle ARCH LM 1,817.8, p = 0).
 - Custom CUDA kernels on an NVIDIA L4: **112x** end to end vs single-core NumPy.
 - Found and fixed two silent defects in the U.S. EIA-930 grid dataset.
 
@@ -33,6 +34,28 @@ whether it found something. At a 5% family-wise error rate, the correct answer i
 | VIX, 36 years of daily data (80 nulls) | **0.988** | **0.063** |
 
 The standard approach reports a discovery on almost every empty dataset.
+
+## On market data, it found a known law without being told
+
+Same code, through the generic CSV adapter, on FRED's daily VIX (1990 to 2026,
+90,307 candidate rules). The outcome: days when the naive "tomorrow's VIX equals
+today's" forecast fails worst.
+
+Top finding, lift **5.57**: `VIX_lag1>q90 AND perr_lag1>q90 AND perr_lag2>q90`.
+Yesterday's VIX move was extreme and so was the day before's, so today's will be.
+That is volatility clustering, Mandelbrot's "large changes are followed by large
+changes, of either sign". Checked formally rather than asserted:
+
+| test | result |
+|---|---|
+| ACF of **signed** daily VIX change, lags 1 / 2 / 5 | -0.125, -0.035, 0.008 |
+| ACF of **absolute** daily VIX change, lags 1 / 2 / 5 | **0.366, 0.364, 0.283** |
+| Ljung-Box Q(10) on absolute change | **7,446.7**, p = 0 |
+| Engle ARCH LM, 10 lags | **1,817.8**, p = 0 |
+
+It is more than persistence: conditioning on the previous two days alone gives a
+lift of 4.09; SIEVE's three-way conjunction gives 5.57. Full write-up in
+[`REPORT.md`](REPORT.md), section "Market data".
 
 ## The methods finding
 
